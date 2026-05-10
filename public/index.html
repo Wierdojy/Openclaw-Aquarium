@@ -55,6 +55,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button id="fetchBtn" onclick="fetchChapter()">Load</button>
   </div>
 
+  <div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;">
+    <button onclick="loadPreset('https://www.zhuishu.com/id1012/1053941.html')" style="padding:8px 12px;background:#0f3460;color:#e0e0e0;border:1px solid #1a5276;border-radius:6px;font-size:13px;cursor:pointer;">鬼吹灯·引子</button>
+    <button onclick="loadPreset('https://www.zhuishu.com/id1012/1053942.html')" style="padding:8px 12px;background:#0f3460;color:#e0e0e0;border:1px solid #1a5276;border-radius:6px;font-size:13px;cursor:pointer;">鬼吹灯·第一章</button>
+  </div>
+
   <div class="controls">
     <button id="btnPinyin" class="on" onclick="togglePinyin()">拼音</button>
     <button onclick="toggleAllTrans()" id="btnTransAll">翻译全部</button>
@@ -72,6 +77,11 @@ let lines = [];
 let pinyinOn = true;
 let transAllOn = false;
 let transCache = {};
+
+function loadPreset(url) {
+  document.getElementById('urlInput').value = url;
+  fetchChapter();
+}
 
 function fetchChapter() {
   const url = document.getElementById('urlInput').value.trim();
