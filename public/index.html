@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Aquarium Reader</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding-bottom: 40px; }
+.container { max-width: 800px; margin: 0 auto; padding: 12px; }
+
+.header { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 12px; }
+.header h1 { font-size: 18px; color: #00d4aa; font-weight: 600; }
+.header .sub { font-size: 11px; color: #666; margin-left: auto; }
+
+.url-bar { display: flex; gap: 6px; margin-bottom: 12px; }
+.url-bar input { flex: 1; padding: 10px 12px; border: 1px solid #444; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 14px; outline: none; }
+.url-bar input:focus { border-color: #00d4aa; }
+.url-bar button { padding: 10px 16px; background: #00d4aa; color: #1a1a2e; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.url-bar button:disabled { opacity: 0.4; }
+
+.controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.controls button { padding: 6px 12px; border: 1px solid #444; border-radius: 6px; background: #16213e; color: #999; font-size: 13px; cursor: pointer; }
+.controls button.on { border-color: #00d4aa; color: #00d4aa; background: #0a2a2e; }
+.controls .spacer { flex: 1; }
+
+.line { padding: 8px 0; border-bottom: 1px solid #222; cursor: pointer; }
+.line:active { background: #16213e; border-radius: 4px; }
+
+.line-text { font-size: 18px; line-height: 1.7; color: #f0f0f0; }
+.line-pinyin { font-size: 12px; color: #777; margin-top: 1px; line-height: 1.6; word-break: break-all; }
+.char-pinyin { display: inline-block; text-align: center; margin: 0 0px; }
+.char-pinyin .py { display: block; font-size: 10px; color: #888; line-height: 1.1; }
+.char-pinyin .ch { display: block; font-size: 18px; color: #f0f0f0; line-height: 1.3; }
+.char-pinyin .non-zh { font-size: 18px; color: #f0f0f0; line-height: 1.1; }
+
+.line-trans { font-size: 14px; color: #aaa; margin-top: 4px; padding: 6px 8px; background: #16213e; border-radius: 4px; display: none; line-height: 1.5; }
+.line-trans.show { display: block; }
+.line-trans.loading { display: block; color: #666; font-style: italic; }
+
+.status { text-align: center; padding: 40px 0; color: #555; font-size: 14px; line-height: 1.8; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: #00d4aa; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🐠 Aquarium</h1>
+    <div class="sub">zhuishu.com URL</div>
+  </div>
+
+  <div class="url-bar">
+    <input type="url" id="urlInput" placeholder="Paste chapter URL..." autocomplete="off" autocorrect="off">
+    <button id="fetchBtn" onclick="fetchChapter()">Load</button>
+  </div>
+
+  <div class="controls">
+    <button id="btnPinyin" class="on" onclick="togglePinyin()">拼音</button>
+    <button onclick="toggleAllTrans()" id="btnTransAll">翻译全部</button>
+    <div class="spacer"></div>
+    <button onclick="clearReader()">清除</button>
+  </div>
+
+  <div id="reader">
+    <div class="status">Paste a chapter URL from zhuishu.com<br>to read with pinyin + translation</div>
+  </div>
+</div>
+
+<script>
+let lines = [];
+let pinyinOn = true;
+let transAllOn = false;
+let transCache = {};
+
+function fetchChapter() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+
+  const reader = document.getElementById('reader');
+  reader.innerHTML = '<div class="status"><span class="spin"></span>Fetching chapter...</div>';
+  document.getElementById('fetchBtn').disabled = true;
+
+  fetch('/api/fetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  })
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('fetchBtn').disabled = false;
+    if (data.error) {
+      reader.innerHTML = `<div class="status" style="color:#ff6b6b">${data.error}</div>`;
+      return;
+    }
+    lines = data.lines;
+    transCache = {};
+    render();
+  })
+  .catch(err => {
+    document.getElementById('fetchBtn').disabled = false;
+    reader.innerHTML = `<div class="status" style="color:#ff6b6b">Error: ${err.message}</div>`;
+  });
+}
+
+function render() {
+  const reader = document.getElementById('reader');
+  let html = '';
+  lines.forEach((line, i) => {
+    const text = h(line.text);
+    const pinyinHtml = pinyinOn ? buildPinyin(line.pinyinBuild) : '';
+    html += `<div class="line" onclick="toggleTrans(${i})">
+      <div class="line-text">${text}</div>
+      ${pinyinOn ? '<div class="line-pinyin">' + pinyinHtml + '</div>' : ''}
+      <div class="line-trans" id="t${i}"></div>
+    </div>`;
+  });
+  reader.innerHTML = html;
+}
+
+function buildPinyin(pinyinData) {
+  if (!pinyinData || !Array.isArray(pinyinData)) return '';
+  return pinyinData.map(item => {
+    if (item.char && item.pinyin) {
+      return `<ruby>${h(item.char)}<rt>${item.pinyin}</rt></ruby>`;
+    }
+    if (item.char) {
+      return h(item.char);
+    }
+    return '';
+  }).join('');
+}
+
+function h(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function togglePinyin() {
+  pinyinOn = !pinyinOn;
+  document.getElementById('btnPinyin').className = pinyinOn ? 'on' : '';
+  if (lines.length) render();
+}
+
+function toggleAllTrans() {
+  transAllOn = !transAllOn;
+  document.getElementById('btnTransAll').className = transAllOn ? 'on' : '';
+
+  if (!transAllOn || !lines.length) {
+    document.querySelectorAll('.line-trans').forEach(el => el.classList.remove('show', 'loading'));
+    return;
+  }
+
+  const texts = lines.map(l => l.text);
+  const uncached = [];
+  const uncachedIdx = [];
+
+  texts.forEach((t, i) => {
+    if (transCache[t]) {
+      const el = document.getElementById('t' + i);
+      if (el) { el.textContent = transCache[t]; el.classList.add('show'); }
+    } else {
+      uncached.push(t);
+      uncachedIdx.push(i);
+    }
+  });
+
+  if (uncached.length === 0) return;
+
+  // Mark loading
+  uncachedIdx.forEach(i => {
+    const el = document.getElementById('t' + i);
+    if (el) { el.textContent = 'translating...'; el.classList.add('show', 'loading'); }
+  });
+
+  // Translate in batches of 10
+  const batchSize = 10;
+  let batchIndex = 0;
+  function translateBatch() {
+    const batch = uncached.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
+    if (batch.length === 0) return;
+
+    fetch('/api/translate-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lines: batch })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.translations) {
+        data.translations.forEach((trans, j) => {
+          const globalIdx = batchIndex * batchSize + j;
+          const originalIdx = uncachedIdx[globalIdx];
+          if (originalIdx !== undefined) {
+            const el = document.getElementById('t' + originalIdx);
+            const originalText = texts[originalIdx];
+            transCache[originalText] = trans;
+            if (el) { el.textContent = trans; el.classList.remove('loading'); }
+          }
+        });
+      }
+      batchIndex++;
+      if (batchIndex * batchSize < uncached.length) {
+        setTimeout(translateBatch, 500);
+      }
+    })
+    .catch(() => { batchIndex++; });
+  }
+  translateBatch();
+}
+
+function toggleTrans(i) {
+  const el = document.getElementById('t' + i);
+  if (!el) return;
+  if (el.classList.contains('show') && !el.classList.contains('loading')) {
+    el.classList.remove('show');
+    return;
+  }
+
+  const text = lines[i].text;
+  if (transCache[text]) {
+    el.textContent = transCache[text];
+    el.classList.add('show');
+    return;
+  }
+
+  el.textContent = 'translating...';
+  el.classList.add('show', 'loading');
+
+  fetch('/api/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const t = data.translation || '';
+    transCache[text] = t;
+    el.textContent = t;
+    el.classList.remove('loading');
+  })
+  .catch(() => { el.textContent = ''; el.classList.remove('loading'); });
+}
+
+function clearReader() {
+  lines = [];
+  transCache = {};
+  document.getElementById('reader').innerHTML =
+    '<div class="status">Paste a chapter URL from zhuishu.com<br>to read with pinyin + translation</div>';
+  document.getElementById('urlInput').value = '';
+}
+</script>
+</body>
+</html>
