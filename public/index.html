@@ -62,7 +62,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
   <div class="controls">
     <button id="btnPinyin" class="on" onclick="togglePinyin()">拼音</button>
-    <button onclick="toggleAllTrans()" id="btnTransAll">翻译全部</button>
     <div class="spacer"></div>
     <button onclick="clearReader()">清除</button>
   </div>
@@ -106,6 +105,7 @@ function fetchChapter() {
     lines = data.lines;
     transCache = {};
     render();
+    autoTranslateAll();
   })
   .catch(err => {
     document.getElementById('fetchBtn').disabled = false;
@@ -119,7 +119,7 @@ function render() {
   lines.forEach((line, i) => {
     const text = h(line.text);
     const pinyinHtml = pinyinOn ? buildPinyin(line.pinyinBuild) : '';
-    html += `<div class="line" onclick="toggleTrans(${i})">
+    html += `<div class="line">
       <div class="line-text">${text}</div>
       ${pinyinOn ? '<div class="line-pinyin">' + pinyinHtml + '</div>' : ''}
       <div class="line-trans" id="t${i}"></div>
@@ -154,15 +154,9 @@ function togglePinyin() {
   if (lines.length) render();
 }
 
-function toggleAllTrans() {
-  transAllOn = !transAllOn;
-  document.getElementById('btnTransAll').className = transAllOn ? 'on' : '';
+function autoTranslateAll() {
 
-  if (!transAllOn || !lines.length) {
-    document.querySelectorAll('.line-trans').forEach(el => el.classList.remove('show', 'loading'));
-    return;
-  }
-
+  if (!lines.length) return;
   const texts = lines.map(l => l.text);
   const uncached = [];
   const uncachedIdx = [];
@@ -221,6 +215,7 @@ function toggleAllTrans() {
   translateBatch();
 }
 
+/* click-to-translate removed - auto-translation on load */
 function toggleTrans(i) {
   const el = document.getElementById('t' + i);
   if (!el) return;
