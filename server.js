@@ -96,36 +96,46 @@ async function fetchChapterList(novelId) {
     await page.goto('https://www.zhuishu.com/id' + novelId + '/', { waitUntil: 'domcontentloaded', timeout: 15000 });
     await page.waitForTimeout(2000);
 
-    var chapters = [];
-    // Click pagination links 2 and 3 to load all chapters
-    for (var pg of ['2', '3']) {
-      await page.evaluate((p) => {
-        var links = document.querySelectorAll('a');
-        for (var a of links) {
-          if (a.textContent.trim() === p) { a.click(); return; }
+    var allChapters = [];
+    var seen = new Set();
+
+    // Scrape each page individually: page 1 is shown by default, then click p=2, p=3
+    for (var pg of ['1', '2', '3']) {
+      if (pg !== '1') {
+        await page.evaluate((p) => {
+          var links = document.querySelectorAll('a');
+          for (var a of links) {
+            if (a.textContent.trim() === p) { a.click(); return; }
+          }
+        }, pg);
+        await page.waitForTimeout(2000);
+      }
+
+      var pageChs = await page.evaluate((id) => {
+        return Array.from(document.querySelectorAll('a'))
+          .filter(a => {
+            var h = a.href || '';
+            return h.includes('id' + id + '/') && h.endsWith('.html') && a.textContent.trim().length > 1;
+          })
+          .map(a => ({ url: a.href, title: a.textContent.trim() }));
+      }, novelId);
+
+      for (var ch of pageChs) {
+        if (!seen.has(ch.url)) {
+          seen.add(ch.url);
+          allChapters.push(ch);
         }
-      }, pg);
-      await page.waitForTimeout(2000);
+      }
     }
 
-    chapters = await page.evaluate((id) => {
-      return Array.from(document.querySelectorAll('a'))
-        .filter(a => {
-          var h = a.href || '';
-          return h.includes('id' + id + '/') && h.endsWith('.html') && a.textContent.trim().length > 3;
-        })
-        .map(a => ({ url: a.href, title: a.textContent.trim() }))
-        .filter((c, i, arr) => arr.findIndex(x => x.url === c.url) === i); // dedupe
-    }, novelId);
-
-    // Sort: put in order by URL suffix (numerical)
-    chapters.sort((a, b) => {
+    // Sort by URL suffix numerically
+    allChapters.sort((a, b) => {
       var na = parseInt(a.url.split('/').pop().replace('.html', ''));
       var nb = parseInt(b.url.split('/').pop().replace('.html', ''));
       return na - nb;
     });
 
-    return chapters;
+    return allChapters;
   } finally {
     await browser.close();
   }
