@@ -65,11 +65,14 @@ app.get('/api/novel/:id/chapters', async (req, res) => {
 // === Search novels ===
 app.get('/api/search', async (req, res) => {
   const { q } = req.query;
+  console.log('Search request:', q);
   if (!q || q.length < 1) return res.json({ results: [] });
   try {
     const results = await searchNovels(q);
+    console.log('Search results:', results.length);
     res.json({ results });
   } catch (err) {
+    console.error('Search error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -157,21 +160,33 @@ app.post('/api/translate-batch', async (req, res) => {
 
 // === Search novels on zhuishu ===
 async function searchNovels(query) {
+  console.log('searchNovels called with:', query);
   const ctx = await getFetchContext();
+  console.log('got context');
   const page = await ctx.newPage();
+  console.log('got page');
   try {
-    await page.goto('https://www.zhuishu.com/search.php?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 15000 });
+    const url = 'https://www.zhuishu.com/search.php?q=' + encodeURIComponent(query);
+    console.log('navigating to:', url);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    console.log('navigated');
     await page.waitForTimeout(2000);
     const results = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('.book-list a, a[href*="/id"]'))
-        .filter(a => a.href.includes('/id') && a.textContent.trim().length > 1)
+      const links = Array.from(document.querySelectorAll('a'));
+      return links
+        .filter(a => a.href && a.href.includes('/id') && !a.href.endsWith('.html') && a.textContent.trim().length > 1)
         .map(a => {
           const idMatch = a.href.match(/id(\d+)\/?$/);
-          return { name: a.textContent.trim(), url: a.href, id: idMatch?.[1], href: a.href };
+          return { name: a.textContent.trim(), url: a.href, id: idMatch?.[1] };
         })
+        .filter(r => r.id)
         .filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i);
     });
+    console.log('results:', results.length);
     return results;
+  } catch (err) {
+    console.error('searchNovels error:', err.message);
+    throw err;
   } finally {
     await page.close();
   }
