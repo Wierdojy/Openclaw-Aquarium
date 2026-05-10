@@ -8,6 +8,17 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// === Get chapter list for a novel ===
+app.get('/api/novel/:id/chapters', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const chapters = await fetchChapterList(id);
+    res.json({ chapters });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // === Fetch chapter ===
 app.post('/api/fetch', async (req, res) => {
   const { url } = req.body;
@@ -25,7 +36,12 @@ app.post('/api/fetch', async (req, res) => {
       pinyinBuild: addPinyin(line)
     }));
 
-    res.json({ lines: annotated, totalLines: annotated.length });
+    // Extract novel ID and chapter ID from URL
+    const urlMatch = url.match(/zhuishu\.com\/id(\d+)\/(\d+)\.html/);
+    const novelId = urlMatch ? urlMatch[1] : null;
+    const chapterId = urlMatch ? urlMatch[2] : null;
+
+    res.json({ lines: annotated, totalLines: annotated.length, novelId, chapterId });
   } catch (err) {
     console.error('Fetch error:', err);
     res.status(500).json({ error: err.message });
@@ -62,6 +78,58 @@ app.post('/api/translate-batch', async (req, res) => {
 });
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// === Fetch full chapter list for a novel by ID ===
+async function fetchChapterList(novelId) {
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-blink-features=AutomationControlled']
+  });
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    viewport: { width: 1920, height: 1080 }
+  });
+  await context.addInitScript(() => { Object.defineProperty(navigator, 'webdriver', { get: () => false }); });
+  const page = await context.newPage();
+
+  try {
+    await page.goto('https://www.zhuishu.com/id' + novelId + '/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForTimeout(2000);
+
+    var chapters = [];
+    // Click pagination links 2 and 3 to load all chapters
+    for (var pg of ['2', '3']) {
+      await page.evaluate((p) => {
+        var links = document.querySelectorAll('a');
+        for (var a of links) {
+          if (a.textContent.trim() === p) { a.click(); return; }
+        }
+      }, pg);
+      await page.waitForTimeout(2000);
+    }
+
+    chapters = await page.evaluate((id) => {
+      return Array.from(document.querySelectorAll('a'))
+        .filter(a => {
+          var h = a.href || '';
+          return h.includes('id' + id + '/') && h.endsWith('.html') && a.textContent.trim().length > 3;
+        })
+        .map(a => ({ url: a.href, title: a.textContent.trim() }))
+        .filter((c, i, arr) => arr.findIndex(x => x.url === c.url) === i); // dedupe
+    }, novelId);
+
+    // Sort: put in order by URL suffix (numerical)
+    chapters.sort((a, b) => {
+      var na = parseInt(a.url.split('/').pop().replace('.html', ''));
+      var nb = parseInt(b.url.split('/').pop().replace('.html', ''));
+      return na - nb;
+    });
+
+    return chapters;
+  } finally {
+    await browser.close();
+  }
+}
 
 // === Fetch chapter content via Playwright ===
 async function fetchChapter(url) {
@@ -128,7 +196,7 @@ async function fetchChapter(url) {
 function cleanContent(text, url) {
   let lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-  // Remove site navigation lines (common patterns on Chinese novel sites)
+  // Remove site navigation and junk patterns
   const junkPatterns = [
     /^首页$/,
     /搜索/,
@@ -164,6 +232,12 @@ function cleanContent(text, url) {
     /追书网/,
     /^返回/,
     /^第\(\d+\/\d+\)页$/,
+    /^第\(\d+\/\d+\)页\s*/,
+    /\s*第\(\d+\/\d+\)页\s*/,
+    /^\d+\/\d+$/,
+    /超速首发/,
+    /最新最快/,
+    /无弹窗/,
   ];
 
   // Find where actual chapter content starts (skip everything before the first long line)
@@ -175,12 +249,20 @@ function cleanContent(text, url) {
     }
   }
 
+  // Filter out lines that are just NAV elements or site chrome
   let filtered = lines.slice(contentStart).filter(line => {
     for (const pat of junkPatterns) {
       if (pat.test(line)) return false;
     }
-    return true;
-  });
+    // Remove lines starting with ~ (decorative separators on novel sites)
+    if (/^[~～\s]+$/.test(line)) return false;
+    // Remove lines that are just "第(1/3)页" embedded in text - clean inline too
+    line = line.replace(/\(\s*\d+\s*\/\s*\d+\s*\)\s*页/g, '');
+    line = line.replace(/[~～]{2,}/g, '');
+    line = line.replace(/超速首发/g, '');
+    line = line.trim();
+    return line.length > 3;
+  }).map(l => l.trim());
 
   // Stop at obvious end markers
   const endIdx = filtered.findIndex(l =>

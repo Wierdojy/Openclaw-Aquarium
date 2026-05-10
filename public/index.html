@@ -8,36 +8,31 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding-bottom: 40px; }
 .container { max-width: 800px; margin: 0 auto; padding: 12px; }
-
 .header { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #333; margin-bottom: 12px; }
 .header h1 { font-size: 18px; color: #00d4aa; font-weight: 600; }
 .header .sub { font-size: 11px; color: #666; margin-left: auto; }
-
 .url-bar { display: flex; gap: 6px; margin-bottom: 12px; }
 .url-bar input { flex: 1; padding: 10px 12px; border: 1px solid #444; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 14px; outline: none; }
 .url-bar input:focus { border-color: #00d4aa; }
 .url-bar button { padding: 10px 16px; background: #00d4aa; color: #1a1a2e; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; }
 .url-bar button:disabled { opacity: 0.4; }
-
 .controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .controls button { padding: 6px 12px; border: 1px solid #444; border-radius: 6px; background: #16213e; color: #999; font-size: 13px; cursor: pointer; }
 .controls button.on { border-color: #00d4aa; color: #00d4aa; background: #0a2a2e; }
 .controls .spacer { flex: 1; }
 
-.line { padding: 8px 0; border-bottom: 1px solid #222; cursor: pointer; }
-.line:active { background: #16213e; border-radius: 4px; }
+.nav-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.nav-bar button { padding: 8px 14px; border: 1px solid #1a5276; border-radius: 6px; background: #0f3460; color: #ccc; font-size: 14px; cursor: pointer; }
+.nav-bar button:disabled { opacity: 0.3; cursor: default; }
+.nav-bar .ch-title { flex: 1; font-size: 13px; color: #888; text-align: center; min-width: 100px; }
+.nav-bar select { padding: 6px 8px; border: 1px solid #444; border-radius: 6px; background: #16213e; color: #ccc; font-size: 12px; max-width: 140px; }
 
+.line { padding: 8px 0; border-bottom: 1px solid #222; }
 .line-text { font-size: 18px; line-height: 1.7; color: #f0f0f0; }
-.line-pinyin { font-size: 12px; color: #777; margin-top: 1px; line-height: 1.6; word-break: break-all; }
-.char-pinyin { display: inline-block; text-align: center; margin: 0 0px; }
-.char-pinyin .py { display: block; font-size: 10px; color: #888; line-height: 1.1; }
-.char-pinyin .ch { display: block; font-size: 18px; color: #f0f0f0; line-height: 1.3; }
-.char-pinyin .non-zh { font-size: 18px; color: #f0f0f0; line-height: 1.1; }
-
+.line-pinyin { font-size: 12px; color: #777; margin-top: 1px; line-height: 1.6; }
 .line-trans { font-size: 14px; color: #aaa; margin-top: 4px; padding: 6px 8px; background: #16213e; border-radius: 4px; display: none; line-height: 1.5; }
 .line-trans.show { display: block; }
 .line-trans.loading { display: block; color: #666; font-style: italic; }
-
 .status { text-align: center; padding: 40px 0; color: #555; font-size: 14px; line-height: 1.8; }
 .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid #444; border-top-color: #00d4aa; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -49,104 +44,133 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <h1>🐠 Aquarium</h1>
     <div class="sub">zhuishu.com URL</div>
   </div>
-
   <div class="url-bar">
     <input type="url" id="urlInput" placeholder="Paste chapter URL..." autocomplete="off" autocorrect="off">
     <button id="fetchBtn" onclick="fetchChapter()">Load</button>
   </div>
-
-  <div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;">
-    <button onclick="loadPreset('https://www.zhuishu.com/id1012/1053941.html')" style="padding:8px 12px;background:#0f3460;color:#e0e0e0;border:1px solid #1a5276;border-radius:6px;font-size:13px;cursor:pointer;">鬼吹灯·引子</button>
-    <button onclick="loadPreset('https://www.zhuishu.com/id1012/1053942.html')" style="padding:8px 12px;background:#0f3460;color:#e0e0e0;border:1px solid #1a5276;border-radius:6px;font-size:13px;cursor:pointer;">鬼吹灯·第一章</button>
+  <div class="nav-bar" id="navBar" style="display:none;">
+    <button id="prevBtn" onclick="navChapter(-1)">← Prev</button>
+    <select id="chapterSelect" onchange="jumpToChapter()"></select>
+    <button id="nextBtn" onclick="navChapter(1)">Next →</button>
   </div>
-
   <div class="controls">
     <button id="btnPinyin" class="on" onclick="togglePinyin()">拼音</button>
     <div class="spacer"></div>
-    <button onclick="clearReader()">清除</button>
+    <button onclick="clearReader()">Clear</button>
   </div>
-
   <div id="reader">
     <div class="status">Paste a chapter URL from zhuishu.com<br>to read with pinyin + translation</div>
   </div>
 </div>
-
 <script>
-let lines = [];
-let pinyinOn = true;
-let transAllOn = false;
-let transCache = {};
+let lines = [], pinyinOn = true, transCache = {};
+let novelId = null, chapterList = [], currentChIdx = -1;
 
 function loadPreset(url) {
   document.getElementById('urlInput').value = url;
   fetchChapter();
 }
 
-function fetchChapter() {
-  const url = document.getElementById('urlInput').value.trim();
-  if (!url) return;
+function fetchChapter(url) {
+  const u = url || document.getElementById('urlInput').value.trim();
+  if (!u) return;
 
   const reader = document.getElementById('reader');
-  reader.innerHTML = '<div class="status"><span class="spin"></span>Fetching chapter...</div>';
+  reader.innerHTML = '<div class="status"><span class="spin"></span>Loading...</div>';
   document.getElementById('fetchBtn').disabled = true;
 
-  fetch('/api/fetch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
-  })
+  fetch('/api/fetch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: u }) })
   .then(r => r.json())
   .then(data => {
     document.getElementById('fetchBtn').disabled = false;
-    if (data.error) {
-      reader.innerHTML = `<div class="status" style="color:#ff6b6b">${data.error}</div>`;
-      return;
-    }
-    lines = data.lines;
-    transCache = {};
+    if (data.error) { reader.innerHTML = '<div class="status" style="color:#ff6b6b">' + data.error + '</div>'; return; }
+    lines = data.lines; transCache = {};
     render();
     autoTranslateAll();
+
+    // Setup chapter navigation
+    if (data.novelId && data.novelId !== novelId) {
+      novelId = data.novelId;
+      fetchChapterList(novelId, data.chapterId);
+    } else if (data.novelId && data.chapterId) {
+      updateNavState(data.chapterId);
+    }
   })
   .catch(err => {
     document.getElementById('fetchBtn').disabled = false;
-    reader.innerHTML = `<div class="status" style="color:#ff6b6b">Error: ${err.message}</div>`;
+    reader.innerHTML = '<div class="status" style="color:#ff6b6b">Error: ' + err.message + '</div>';
   });
+}
+
+function fetchChapterList(id, currentId) {
+  fetch('/api/novel/' + id + '/chapters')
+    .then(r => r.json())
+    .then(data => {
+      if (data.chapters && data.chapters.length) {
+        chapterList = data.chapters;
+        buildChapterSelect();
+        updateNavState(currentId);
+        document.getElementById('navBar').style.display = 'flex';
+      }
+    })
+    .catch(() => {});
+}
+
+function buildChapterSelect() {
+  const sel = document.getElementById('chapterSelect');
+  sel.innerHTML = chapterList.map((ch, i) =>
+    '<option value="' + i + '">' + ch.title.substring(0, 20) + '</option>'
+  ).join('');
+}
+
+function updateNavState(currentId) {
+  currentChIdx = chapterList.findIndex(ch => ch.url.includes('/' + currentId + '.html'));
+  if (currentChIdx >= 0) {
+    document.getElementById('prevBtn').disabled = currentChIdx <= 0;
+    document.getElementById('nextBtn').disabled = currentChIdx >= chapterList.length - 1;
+    document.getElementById('chapterSelect').value = currentChIdx;
+  }
+}
+
+function navChapter(dir) {
+  const idx = currentChIdx + dir;
+  if (idx < 0 || idx >= chapterList.length) return;
+  const ch = chapterList[idx];
+  document.getElementById('urlInput').value = ch.url;
+  fetchChapter(ch.url);
+}
+
+function jumpToChapter() {
+  const idx = parseInt(document.getElementById('chapterSelect').value);
+  const ch = chapterList[idx];
+  if (ch) {
+    document.getElementById('urlInput').value = ch.url;
+    fetchChapter(ch.url);
+  }
 }
 
 function render() {
   const reader = document.getElementById('reader');
-  let html = '';
-  lines.forEach((line, i) => {
+  reader.innerHTML = lines.map((line, i) => {
     const text = h(line.text);
     const pinyinHtml = pinyinOn ? buildPinyin(line.pinyinBuild) : '';
-    html += `<div class="line">
-      <div class="line-text">${text}</div>
-      ${pinyinOn ? '<div class="line-pinyin">' + pinyinHtml + '</div>' : ''}
-      <div class="line-trans" id="t${i}"></div>
-    </div>`;
-  });
-  reader.innerHTML = html;
+    return '<div class="line">'
+      + '<div class="line-text">' + text + '</div>'
+      + (pinyinOn ? '<div class="line-pinyin">' + pinyinHtml + '</div>' : '')
+      + '<div class="line-trans" id="t' + i + '"></div></div>';
+  }).join('');
 }
 
-function buildPinyin(pinyinData) {
-  if (!pinyinData || !Array.isArray(pinyinData)) return '';
-  return pinyinData.map(item => {
-    if (item.char && item.pinyin) {
-      return `<ruby>${h(item.char)}<rt>${item.pinyin}</rt></ruby>`;
-    }
-    if (item.char) {
-      return h(item.char);
-    }
+function buildPinyin(d) {
+  if (!d || !Array.isArray(d)) return '';
+  return d.map(item => {
+    if (item.char && item.pinyin) return '<ruby>' + h(item.char) + '<rt>' + item.pinyin + '</rt></ruby>';
+    if (item.char) return h(item.char);
     return '';
   }).join('');
 }
 
-function h(s) {
-  if (!s) return '';
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
+function h(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function togglePinyin() {
   pinyinOn = !pinyinOn;
@@ -155,106 +179,54 @@ function togglePinyin() {
 }
 
 function autoTranslateAll() {
-
   if (!lines.length) return;
-  const texts = lines.map(l => l.text);
-  const uncached = [];
-  const uncachedIdx = [];
-
+  const texts = lines.map(l => l.text), uncached = [], uncachedIdx = [];
   texts.forEach((t, i) => {
     if (transCache[t]) {
       const el = document.getElementById('t' + i);
       if (el) { el.textContent = transCache[t]; el.classList.add('show'); }
-    } else {
-      uncached.push(t);
-      uncachedIdx.push(i);
-    }
+    } else { uncached.push(t); uncachedIdx.push(i); }
   });
+  if (!uncached.length) return;
 
-  if (uncached.length === 0) return;
-
-  // Mark loading
   uncachedIdx.forEach(i => {
     const el = document.getElementById('t' + i);
     if (el) { el.textContent = 'translating...'; el.classList.add('show', 'loading'); }
   });
 
-  // Translate in batches of 10
-  const batchSize = 10;
   let batchIndex = 0;
+  const batchSize = 10;
+
   function translateBatch() {
     const batch = uncached.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
-    if (batch.length === 0) return;
-
-    fetch('/api/translate-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines: batch })
-    })
+    if (!batch.length) return;
+    fetch('/api/translate-batch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: batch }) })
     .then(r => r.json())
     .then(data => {
       if (data.translations) {
         data.translations.forEach((trans, j) => {
-          const globalIdx = batchIndex * batchSize + j;
-          const originalIdx = uncachedIdx[globalIdx];
-          if (originalIdx !== undefined) {
-            const el = document.getElementById('t' + originalIdx);
-            const originalText = texts[originalIdx];
-            transCache[originalText] = trans;
+          const gi = batchIndex * batchSize + j;
+          const oi = uncachedIdx[gi];
+          if (oi !== undefined) {
+            const el = document.getElementById('t' + oi);
+            transCache[texts[oi]] = trans;
             if (el) { el.textContent = trans; el.classList.remove('loading'); }
           }
         });
       }
       batchIndex++;
-      if (batchIndex * batchSize < uncached.length) {
-        setTimeout(translateBatch, 500);
-      }
+      if (batchIndex * batchSize < uncached.length) setTimeout(translateBatch, 500);
     })
     .catch(() => { batchIndex++; });
   }
   translateBatch();
 }
 
-/* click-to-translate removed - auto-translation on load */
-function toggleTrans(i) {
-  const el = document.getElementById('t' + i);
-  if (!el) return;
-  if (el.classList.contains('show') && !el.classList.contains('loading')) {
-    el.classList.remove('show');
-    return;
-  }
-
-  const text = lines[i].text;
-  if (transCache[text]) {
-    el.textContent = transCache[text];
-    el.classList.add('show');
-    return;
-  }
-
-  el.textContent = 'translating...';
-  el.classList.add('show', 'loading');
-
-  fetch('/api/translate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  })
-  .then(r => r.json())
-  .then(data => {
-    const t = data.translation || '';
-    transCache[text] = t;
-    el.textContent = t;
-    el.classList.remove('loading');
-  })
-  .catch(() => { el.textContent = ''; el.classList.remove('loading'); });
-}
-
 function clearReader() {
-  lines = [];
-  transCache = {};
-  document.getElementById('reader').innerHTML =
-    '<div class="status">Paste a chapter URL from zhuishu.com<br>to read with pinyin + translation</div>';
+  lines = []; transCache = {}; novelId = null; chapterList = []; currentChIdx = -1;
+  document.getElementById('reader').innerHTML = '<div class="status">Paste a chapter URL from zhuishu.com<br>to read with pinyin + translation</div>';
   document.getElementById('urlInput').value = '';
+  document.getElementById('navBar').style.display = 'none';
 }
 </script>
 </body>
