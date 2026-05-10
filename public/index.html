@@ -3,94 +3,648 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Aquarium Reader</title>
+<title>Muyu Reader — 沐浴阅读器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1" />
 <style>
+/* ═══════════════════════════════════════════
+   Muyu Reader — Stitch Design System
+   Warm, serene, paper-like reading experience
+   ═══════════════════════════════════════════ */
+
+:root {
+  /* Colors */
+  --color-background: #fbf9f4;
+  --color-surface: #fbf9f4;
+  --color-surface-container: #f0eee9;
+  --color-surface-container-high: #eae8e3;
+  --color-surface-container-low: #f5f3ee;
+  --color-surface-container-lowest: #ffffff;
+  --color-primary: #4a654e;
+  --color-primary-container: #8ba88e;
+  --color-primary-fixed: #cceace;
+  --color-primary-fixed-dim: #b0ceb2;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #233d29;
+  --color-on-primary-fixed: #07200f;
+  --color-on-primary-fixed-variant: #334d38;
+  --color-secondary: #895036;
+  --color-secondary-container: #fdb292;
+  --color-secondary-fixed: #ffdbcd;
+  --color-tertiary: #46636c;
+  --color-tertiary-container: #88a6b0;
+  --color-on-surface: #1b1c19;
+  --color-on-surface-variant: #424842;
+  --color-outline: #737972;
+  --color-outline-variant: #c2c8c0;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+
+  /* Typography */
+  --font-body: 'Noto Serif SC', 'Songti SC', serif;
+  --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Spacing */
+  --unit: 8px;
+  --gutter: 16px;
+  --margin-mobile: 28px;
+  --margin-desktop: 64px;
+  --container-max-width: 800px;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; padding-bottom: 20px; }
-.container { max-width: 800px; margin: 0 auto; padding: 12px; }
-.header { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #2a2a3e; margin-bottom: 16px; }
-.header h1 { font-size: 20px; color: #00d4aa; font-weight: 700; letter-spacing: 0.5px; }
-.header .fish { font-size: 24px; }
 
-/* Home Screen */
-.search-bar { display: flex; gap: 6px; margin-bottom: 12px; }
-.search-bar input { flex: 1; padding: 12px 14px; border: 1px solid #333; border-radius: 10px; background: #16213e; color: #e0e0e0; font-size: 15px; outline: none; }
-.search-bar input:focus { border-color: #00d4aa; }
-.search-bar button { padding: 12px 18px; background: #00d4aa; color: #1a1a2e; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; }
-.search-bar button:disabled { opacity: 0.4; }
+body {
+  font-family: var(--font-ui);
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  padding-bottom: 20px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-.section-title { font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+.container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 var(--margin-mobile);
+}
 
-.book-card { display: flex; align-items: center; gap: 12px; padding: 14px; background: #16213e; border-radius: 10px; margin-bottom: 8px; cursor: pointer; border: 1px solid #2a2a3e; }
-.book-card:active { background: #1a2745; }
-.book-card .info { flex: 1; }
-.book-card .name { font-size: 16px; color: #f0f0f0; font-weight: 600; }
-.book-card .author { font-size: 12px; color: #888; margin-top: 2px; }
-.book-card .arrow { color: #555; font-size: 18px; }
-.book-card .icon { font-size: 28px; }
+@media (min-width: 800px) {
+  .container { padding: 0 var(--margin-desktop); }
+}
 
-.search-result { padding: 12px 14px; background: #16213e; border-radius: 8px; margin-bottom: 6px; cursor: pointer; border: 1px solid #2a2a3e; }
-.search-result:active { background: #1a2745; }
-.search-result .name { font-size: 15px; color: #f0f0f0; }
-.search-result .meta { font-size: 12px; color: #888; margin-top: 2px; }
+/* ── Header ──────────────────────────────── */
 
-/* Reading View */
-.reader-header { display: flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 8px; }
-.reader-header .back-btn { padding: 6px 12px; border: 1px solid #333; border-radius: 6px; background: #16213e; color: #ccc; font-size: 13px; cursor: pointer; }
-.reader-header .ch-title { flex: 1; font-size: 14px; color: #888; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.reader-header .fs-btn { padding: 4px 8px; border: 1px solid #333; border-radius: 6px; background: #16213e; color: #888; font-size: 13px; cursor: pointer; }
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 0 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--color-outline-variant);
+}
 
-.chapter-nav { display: flex; gap: 6px; margin-bottom: 12px; }
-.chapter-nav button { flex: 1; padding: 10px; border: 1px solid #2a2a3e; border-radius: 8px; background: #16213e; color: #ccc; font-size: 14px; cursor: pointer; text-align: center; }
-.chapter-nav button:disabled { opacity: 0.2; cursor: default; }
-.chapter-nav select { flex: 2; padding: 8px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #ccc; font-size: 12px; }
+.header h1 {
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--color-on-surface);
+}
 
-/* Lines */
-.line { padding: 8px 0; border-bottom: 1px solid #222; }
-.line-text { font-size: 22px; line-height: 1.9; color: #f0f0f0; letter-spacing: 0.3px; }
-.char { display: inline-block; position: relative; cursor: pointer; border-radius: 2px; padding: 0 0px; }
-.char:active { background: #0f3460; border-radius: 3px; }
-.non-zh { display: inline; }
-.char .py-overlay { display: none; font-size: 11px; color: #00d4aa; text-align: center; line-height: 1; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none; background: #1a1a2e; padding: 2px 4px; border-radius: 4px; z-index: 10; }
-.char .py-overlay.show { display: block; }
-.char.hl { background: #0f3460; border-radius: 3px; }
+.header .fish {
+  font-size: 24px;
+  line-height: 1;
+}
 
-.line-trans { font-size: 14px; color: #888; margin-top: 2px; padding: 2px 0; line-height: 1.5; display: none; }
-.line-trans.show { display: block; }
-.line-trans.loading { display: block; color: #666; font-style: italic; }
+/* ── Home Screen ─────────────────────────── */
 
-/* Popup */
-.popup { display: none; position: fixed; z-index: 100; background: #0d1b2a; border: 1px solid #1a5276; border-radius: 12px; padding: 14px 16px; max-width: 300px; box-shadow: 0 4px 24px rgba(0,0,0,0.6); pointer-events: none; }
-.popup.show { display: block; }
-.popup .p-word { font-size: 26px; color: #f0f0f0; }
-.popup .p-py { font-size: 14px; color: #00d4aa; margin-left: 8px; }
-.popup .p-defs { margin-top: 8px; font-size: 13px; color: #ccc; line-height: 1.5; }
-.popup .p-defs li { list-style: none; padding: 1px 0; }
-.popup .p-defs li:before { content: '· '; color: #00d4aa; }
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 0 12px;
+}
 
-/* Loading */
-.spin { display: inline-block; width: 16px; height: 16px; border: 2px solid #333; border-top-color: #00d4aa; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-box { text-align: center; padding: 40px; color: #888; font-size: 14px; }
-.status-text { text-align: center; padding: 40px 0; color: #555; font-size: 14px; line-height: 1.8; }
+.search-bar input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1.5px solid var(--color-outline-variant);
+  border-radius: 12px;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
 
-/* Font sizes */
+.search-bar input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(74, 101, 78, 0.12);
+}
+
+.search-bar input::placeholder {
+  color: var(--color-on-surface-variant);
+  opacity: 0.6;
+}
+
+.search-bar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 20px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.search-bar button:hover {
+  background: var(--color-on-primary-fixed-variant);
+}
+
+.search-bar button:active {
+  transform: scale(0.97);
+}
+
+.search-bar button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
+.search-bar button .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.section-title {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-outline);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 28px 0 12px;
+}
+
+/* ── Book Cards ──────────────────────────── */
+
+.book-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.book-card:hover {
+  border-color: var(--color-primary-container);
+  background: var(--color-surface-container-low);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.book-card:active {
+  background: var(--color-surface-container);
+}
+
+.book-card .info {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-card .name {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--color-on-surface);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.book-card .author {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-on-surface-variant);
+  margin-top: 4px;
+}
+
+.book-card .arrow {
+  color: var(--color-outline);
+  font-size: 20px;
+  font-weight: 300;
+  opacity: 0.5;
+  font-family: var(--font-ui);
+}
+
+.book-card .icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Search Results ──────────────────────── */
+
+.search-result {
+  padding: 14px 16px;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.search-result:hover {
+  border-color: var(--color-primary-container);
+  background: var(--color-surface-container-low);
+}
+
+.search-result .name {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--color-on-surface);
+  font-weight: 500;
+}
+
+.search-result .meta {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-on-surface-variant);
+  margin-top: 3px;
+}
+
+/* ── Reader Header ───────────────────────── */
+
+.reader-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--color-outline-variant);
+}
+
+.reader-header .back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--color-outline-variant);
+  border-radius: 10px;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.reader-header .back-btn:hover {
+  border-color: var(--color-primary-container);
+  background: var(--color-surface-container-low);
+}
+
+.reader-header .back-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.reader-header .ch-title {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--color-on-surface-variant);
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.reader-header .fs-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--color-primary-container);
+  border-radius: 10px;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.reader-header .fs-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.reader-header .fs-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+/* ── Chapter Navigation ──────────────────── */
+
+.chapter-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 0 12px;
+}
+
+.chapter-nav button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--color-outline-variant);
+  border-radius: 10px;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.chapter-nav button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.chapter-nav button:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.chapter-nav button .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.chapter-nav select {
+  flex: 2;
+  padding: 8px 12px;
+  border: 1.5px solid var(--color-outline-variant);
+  border-radius: 10px;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-on-surface);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 0;
+}
+
+.chapter-nav select:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── Reading Area (Warm Paper) ───────────── */
+
+#reader {
+  padding: 4px 4px;
+}
+
+.line {
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(194, 200, 192, 0.3);
+}
+
+.line-text {
+  font-family: var(--font-body);
+  font-size: 22px;
+  line-height: 1.9;
+  color: var(--color-on-surface);
+  letter-spacing: 0.02em;
+  font-weight: 400;
+  padding: 0 4px;
+}
+
+/* ── Character / Pinyin ──────────────────── */
+
+.char {
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0 1px;
+  transition: background 0.15s ease;
+}
+
+.char:active {
+  background: var(--color-primary-fixed);
+}
+
+.non-zh {
+  display: inline;
+}
+
+.char .py-overlay {
+  display: none;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-align: center;
+  line-height: 1;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  background: var(--color-primary-fixed);
+  padding: 3px 8px;
+  border-radius: 6px;
+  z-index: 10;
+}
+
+.char .py-overlay.show {
+  display: block;
+}
+
+.char.hl {
+  background: var(--color-primary-fixed);
+  border-radius: 4px;
+}
+
+/* ── Translation Lines ───────────────────── */
+
+.line-trans {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+  color: var(--color-on-surface-variant);
+  margin-top: 4px;
+  padding: 6px 0 2px 14px;
+  display: none;
+  border-left: 3px solid var(--color-primary-fixed-dim);
+}
+
+.line-trans.show {
+  display: block;
+}
+
+.line-trans.loading {
+  display: block;
+  color: var(--color-outline);
+  font-style: italic;
+}
+
+/* ── Popup / Dictionary Card ─────────────── */
+
+.popup {
+  display: none;
+  position: fixed;
+  z-index: 100;
+  background: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 12px;
+  padding: 16px 20px;
+  max-width: 320px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+}
+
+.popup.show {
+  display: block;
+  animation: popupFadeIn 0.2s ease;
+}
+
+@keyframes popupFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.popup .p-word {
+  font-family: var(--font-body);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+}
+
+.popup .p-py {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-primary);
+  margin-left: 10px;
+}
+
+.popup .p-defs {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-on-surface);
+}
+
+.popup .p-defs li {
+  list-style: none;
+  padding: 3px 0;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  color: var(--color-on-surface);
+}
+
+.popup .p-defs li:before {
+  content: '· ';
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+/* ── Loading & Status ────────────────────── */
+
+.spin {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid var(--color-outline-variant);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-box {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-on-surface-variant);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.status-text {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-on-surface-variant);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.8;
+  font-weight: 500;
+}
+
+/* ── Font Size Variants ──────────────────── */
+
 .sz-20 .line-text { font-size: 20px; }
 .sz-24 .line-text { font-size: 24px; }
 .sz-28 .line-text { font-size: 28px; }
+
+/* ── Responsive ──────────────────────────── */
+
+@media (max-width: 600px) {
+  .header {
+    padding: 14px 0 12px;
+  }
+
+  .char .py-overlay {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .chapter-nav {
+    flex-wrap: wrap;
+  }
+
+  .chapter-nav select {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .popup {
+    max-width: 280px;
+    padding: 14px 16px;
+  }
+}
 </style>
 </head>
 <body>
 <div class="container" id="appRoot">
   <div class="header">
-    <span class="fish">🐠</span><h1>Aquarium</h1>
+    <h1>Muyu Reader</h1>
   </div>
 
   <!-- HOME VIEW -->
   <div id="homeView">
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Search novels..." autocomplete="off" autocorrect="off">
-      <button id="searchBtn" onclick="doSearch()">Search</button>
+      <button id="searchBtn" onclick="doSearch()"><span class="material-symbols-outlined">search</span></button>
     </div>
 
     <div class="section-title">Featured Novels</div>
@@ -109,7 +663,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <!-- CHAPTER LIST VIEW -->
   <div id="chapterListView" style="display:none;">
     <div class="reader-header">
-      <button class="back-btn" onclick="showHome()">← Back</button>
+      <button class="back-btn" onclick="showHome()"><span class="material-symbols-outlined">arrow_back</span> Back</button>
       <div class="ch-title" id="novelTitle">Loading...</div>
     </div>
     <div id="chapterList"></div>
@@ -118,14 +672,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <!-- READING VIEW -->
   <div id="readingView" style="display:none;">
     <div class="reader-header">
-      <button class="back-btn" onclick="showChapters()">← Back</button>
+      <button class="back-btn" onclick="showChapters()"><span class="material-symbols-outlined">arrow_back</span> Back</button>
       <div class="ch-title" id="chTitle">Chapter</div>
-      <button class="fs-btn" onclick="cycleFontSize()">A</button>
+      <button class="fs-btn" onclick="cycleFontSize()"><span class="material-symbols-outlined">format_size</span></button>
     </div>
     <div class="chapter-nav">
-      <button id="prevBtn" onclick="navChapter(-1)">← Prev</button>
+      <button id="prevBtn" onclick="navChapter(-1)"><span class="material-symbols-outlined">chevron_left</span> Prev</button>
       <select id="chapterSelect" onchange="jumpToChapter()"></select>
-      <button id="nextBtn" onclick="navChapter(1)">Next →</button>
+      <button id="nextBtn" onclick="navChapter(1)">Next <span class="material-symbols-outlined">chevron_right</span></button>
     </div>
     <div id="reader"></div>
   </div>
@@ -295,14 +849,14 @@ function onCharClick(event, el) {
           defsEl.appendChild(li);
         });
       } else {
-        defsEl.innerHTML = '<li style="color:#666">(no definition)</li>';
+        defsEl.innerHTML = '<li style="color:#B5A898">(no definition)</li>';
       }
     });
 
   // Position popup
   const popup = document.getElementById('popup');
   const rect = el.getBoundingClientRect();
-  popup.style.left = Math.min(rect.left, window.innerWidth - 320) + 'px';
+  popup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
   popup.style.top = (rect.bottom + 10) + 'px';
   popup.classList.add('show');
 

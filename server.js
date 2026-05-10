@@ -322,7 +322,7 @@ function splitIntoLines(text) {
 // === Start server ===
 const server = http.createServer(app);
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Aquarium reader running on http://0.0.0.0:${PORT}`);
+  console.log(`Muyu Reader running on http://0.0.0.0:${PORT}`);
 });
 
 // Try to also start HTTPS with self-signed cert
