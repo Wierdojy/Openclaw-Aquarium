@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const { chromium } = require('playwright');
 const { pinyin } = require('pinyin-pro');
+const dict = require('./dict');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,6 +47,32 @@ app.post('/api/fetch', async (req, res) => {
     console.error('Fetch error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// === Lookup a word/character in dictionary ===
+app.get('/api/dict/:text', (req, res) => {
+  const text = decodeURIComponent(req.params.text);
+  if (!text) return res.json({ results: [] });
+  if (/[\u4e00-\u9fff]/.test(text)) {
+    const result = dict.lookup(text, 0);
+    if (result) {
+      const pinyin = require('pinyin-pro').pinyin(result.word, { toneType: 'symbol' });
+      return res.json({ word: result.word, pinyin, definitions: result.definitions });
+    }
+  }
+  res.json({ word: text, pinyin: '', definitions: ['(not found)'] });
+});
+
+// === Lookup all words in a line ===
+app.post('/api/dict/batch', (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.json({ words: [] });
+  const words = dict.lookupAll(text);
+  const withPinyin = words.map(w => ({
+    ...w,
+    pinyin: require('pinyin-pro').pinyin(w.word, { toneType: 'symbol' })
+  }));
+  res.json({ words: withPinyin });
 });
 
 // === Translate a single line ===
