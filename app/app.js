@@ -28,6 +28,10 @@ const state = {
     isPaused: false,
     requestedStop: false,
     playbackId: 0,
+    highlightTimers: [],
+    lastBoundaryIndex: null,
+    lastBoundaryTime: null,
+    estimatedMsPerChar: 150,
     charIndex: 0,
     statusKey: "ttsReady"
   },
@@ -896,25 +900,40 @@ function clearTtsHighlight() {
   });
 }
 
-function getTtsHighlightTargets(index) {
-  const clampedIndex = clampTtsCharacterIndex(index);
-  const match = getDictionaryMatchAt(state.currentReaderText, clampedIndex);
-  if (match && match.term.length > 1) {
-    const targets = getActiveTargets(match.start, match.term.length);
-    if (targets.length) return targets;
-  }
+function clearTtsHighlightTimers() {
+  state.tts.highlightTimers.forEach((timerId) => window.clearTimeout(timerId));
+  state.tts.highlightTimers = [];
+}
 
+function getTtsHighlightTarget(index) {
+  const clampedIndex = clampTtsCharacterIndex(index);
   const target = getReaderTermAt(clampedIndex);
-  return target ? [target] : [];
+  return target || null;
+}
+
+function queueIntraWordHighlight(playbackId, startIndex) {
+  const queuedIndices = [];
+  const maxSyntheticSpan = 4;
+  for (let index = startIndex + 1; index < state.currentReaderText.length && queuedIndices.length < maxSyntheticSpan - 1; index += 1) {
+    if (!isChineseCharacter(state.currentReaderText[index])) break;
+    queuedIndices.push(index);
+  }
+  if (!queuedIndices.length) return;
+  const stepDelay = Math.max(70, Math.min(260, state.tts.estimatedMsPerChar));
+  queuedIndices.forEach((nextIndex, offset) => {
+    const timerId = window.setTimeout(() => {
+      if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
+      if (state.tts.charIndex >= nextIndex) return;
+      setTtsCharacterIndex(nextIndex, false);
+    }, stepDelay * (offset + 1));
+    state.tts.highlightTimers.push(timerId);
+  });
 }
 
 function highlightTtsCharacter(index) {
   clearTtsHighlight();
-  let targets = getTtsHighlightTargets(index);
-  for (let offset = 1; !targets.length && offset < 8; offset += 1) {
-    targets = getTtsHighlightTargets(index + offset);
-  }
-  targets.forEach((target) => target.classList.add("speaking"));
+  const target = getTtsHighlightTarget(index);
+  if (target) target.classList.add("speaking");
 }
 
 function clampTtsCharacterIndex(index) {
@@ -955,6 +974,7 @@ function speakNextTtsChunk() {
     state.tts.isPlaying = false;
     state.tts.isPaused = false;
     state.tts.chunkIndex = 0;
+    clearTtsHighlightTimers();
     setTtsCharacterIndex(Math.max(0, state.currentReaderText.length - 1), false);
     setTtsStatus("ttsDone");
     return;
@@ -970,12 +990,35 @@ function speakNextTtsChunk() {
   utterance.pitch = 1;
   utterance.onboundary = (event) => {
     if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
-    if (typeof event.charIndex === "number") {
-      setTtsCharacterIndex(chunk.start + chunkOffset + event.charIndex, false);
+    if (typeof event.charIndex !== "number") return;
+    const absoluteIndex = chunk.start + chunkOffset + event.charIndex;
+    const previousIndex = state.tts.charIndex;
+    const hadBoundary = typeof state.tts.lastBoundaryIndex === "number";
+    if (typeof event.elapsedTime === "number" && Number.isFinite(event.elapsedTime)) {
+      if (hadBoundary && typeof state.tts.lastBoundaryTime === "number" && absoluteIndex > state.tts.lastBoundaryIndex) {
+        const deltaTimeMs = Math.max(40, (event.elapsedTime - state.tts.lastBoundaryTime) * 1000);
+        const deltaChars = Math.max(1, absoluteIndex - state.tts.lastBoundaryIndex);
+        state.tts.estimatedMsPerChar = Math.max(70, Math.min(260, deltaTimeMs / deltaChars));
+      }
+      state.tts.lastBoundaryTime = event.elapsedTime;
     }
+    if (absoluteIndex < previousIndex) {
+      state.tts.lastBoundaryIndex = hadBoundary ? Math.max(state.tts.lastBoundaryIndex, absoluteIndex) : absoluteIndex;
+      return;
+    }
+    const shouldQueueFromCurrent = !hadBoundary && absoluteIndex === previousIndex;
+    if (!shouldQueueFromCurrent && absoluteIndex <= previousIndex) {
+      state.tts.lastBoundaryIndex = hadBoundary ? Math.max(state.tts.lastBoundaryIndex, absoluteIndex) : absoluteIndex;
+      return;
+    }
+    state.tts.lastBoundaryIndex = absoluteIndex;
+    clearTtsHighlightTimers();
+    setTtsCharacterIndex(absoluteIndex, false);
+    queueIntraWordHighlight(playbackId, absoluteIndex);
   };
   utterance.onend = () => {
     if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
+    clearTtsHighlightTimers();
     setTtsCharacterIndex(chunk.end, false);
     state.tts.chunkIndex += 1;
     speakNextTtsChunk();
@@ -993,12 +1036,15 @@ function prepareTtsAt(startIndex, statusKey = "ttsIdle", shouldScroll = false) {
   const chunks = chunkTtsText(state.currentReaderText);
   state.tts.requestedStop = true;
   state.tts.playbackId += 1;
+  clearTtsHighlightTimers();
   window.speechSynthesis.cancel();
   state.tts.chunks = chunks;
   state.tts.chunkIndex = findTtsChunkIndexAt(chunks, startIndex);
   state.tts.utterance = null;
   state.tts.isPlaying = false;
   state.tts.isPaused = false;
+  state.tts.lastBoundaryIndex = null;
+  state.tts.lastBoundaryTime = null;
   const seekIndex = chunks.length ? getTtsStartIndexForChunk(chunks, startIndex) : startIndex;
   setTtsCharacterIndex(seekIndex, shouldScroll);
   setTtsStatus(statusKey);
@@ -1011,6 +1057,7 @@ function startTts(startIndex = state.tts.charIndex) {
   if (!chunks.length) return;
   state.tts.requestedStop = true;
   state.tts.playbackId += 1;
+  clearTtsHighlightTimers();
   window.speechSynthesis.cancel();
   state.tts.chunks = chunks;
   state.tts.charIndex = getTtsStartIndexForChunk(chunks, startIndex);
@@ -1018,6 +1065,8 @@ function startTts(startIndex = state.tts.charIndex) {
   state.tts.isPlaying = true;
   state.tts.isPaused = false;
   state.tts.requestedStop = false;
+  state.tts.lastBoundaryIndex = null;
+  state.tts.lastBoundaryTime = null;
   highlightTtsCharacter(state.tts.charIndex);
   setTtsStatus("ttsPlaying");
   speakNextTtsChunk();
@@ -1049,12 +1098,15 @@ function stopTts(statusKey = "ttsStopped") {
   if (!state.tts.supported) return;
   state.tts.requestedStop = true;
   state.tts.playbackId += 1;
+  clearTtsHighlightTimers();
   window.speechSynthesis.cancel();
   state.tts.chunks = [];
   state.tts.chunkIndex = 0;
   state.tts.charIndex = 0;
   state.tts.isPlaying = false;
   state.tts.isPaused = false;
+  state.tts.lastBoundaryIndex = null;
+  state.tts.lastBoundaryTime = null;
   clearTtsHighlight();
   setTtsStatus(statusKey);
 }
@@ -1214,6 +1266,66 @@ function scheduleAmbientNote(context, destination, {
   state.ambient.nodes.push(oscillator, filter, noteGain);
 }
 
+function scheduleAmbientBellAccent(context, destination, { start, frequency, gain = 0.022, duration = 1.8 }) {
+  scheduleAmbientNote(context, destination, {
+    start,
+    frequency,
+    duration,
+    gain,
+    attack: 0.01,
+    release: 1.4,
+    type: "triangle",
+    filterFrequency: 2200,
+    q: 1.2
+  });
+  scheduleAmbientNote(context, destination, {
+    start: start + 0.02,
+    frequency: frequency * 1.5,
+    duration: duration * 0.72,
+    gain: gain * 0.42,
+    attack: 0.01,
+    release: 1,
+    type: "sine",
+    filterFrequency: 2800,
+    q: 0.8
+  });
+}
+
+function scheduleAmbientPhrase(context, destination, notes, defaults = {}) {
+  notes.forEach((note) => {
+    scheduleAmbientNote(context, destination, {
+      ...defaults,
+      ...note
+    });
+  });
+}
+
+function scheduleAmbientNoiseBurst(context, destination, {
+  start,
+  duration = 0.18,
+  gain = 0.02,
+  filterType = "bandpass",
+  frequency = 1200,
+  q = 2.8
+}) {
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const burstGain = context.createGain();
+  source.buffer = createNoiseBuffer(context, 1);
+  filter.type = filterType;
+  filter.frequency.value = frequency;
+  filter.Q.value = q;
+  burstGain.gain.setValueAtTime(0.0001, start);
+  burstGain.gain.linearRampToValueAtTime(gain, start + 0.02);
+  burstGain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  source.connect(filter);
+  filter.connect(burstGain);
+  burstGain.connect(destination);
+  source.start(start);
+  source.stop(start + duration + 0.05);
+  state.ambient.nodes.push(source, filter, burstGain);
+}
+
 function startAmbientLoop(context, cycleSeconds, callback) {
   const scheduleCycle = () => callback(context.currentTime + 0.06);
   scheduleCycle();
@@ -1254,6 +1366,7 @@ function startAmbient() {
   stopAmbient();
   const padBus = createAmbientDelay(context, state.ambient.masterGain, 0.34, 0.42, 0.32);
   const bellBus = createAmbientDelay(context, state.ambient.masterGain, 0.52, 0.48, 0.4);
+  const fxBus = createAmbientDelay(context, state.ambient.masterGain, 0.21, 0.26, 0.2);
   if (state.ambient.selection === "moon") {
     addSoftTone(context, padBus, 196, 0.018, -3, "sine");
     addSoftTone(context, padBus, 293.66, 0.014, 4, "triangle");
@@ -1278,51 +1391,120 @@ function startAmbient() {
       });
     });
   } else if (state.ambient.selection === "teahouse") {
-    addSoftTone(context, padBus, 174.61, 0.016, -5, "triangle");
-    addSoftTone(context, padBus, 261.63, 0.014, 2, "sine");
+    addSoftTone(context, padBus, 174.61, 0.015, -5, "triangle");
+    addSoftTone(context, padBus, 261.63, 0.012, 2, "sine");
+    addSoftTone(context, padBus, 392, 0.008, -7, "sine");
     startAmbientLoop(context, 8, (start) => {
-      [
-        { at: 0.0, frequency: 349.23, duration: 0.9, gain: 0.026 },
-        { at: 0.9, frequency: 392, duration: 0.8, gain: 0.022 },
-        { at: 1.8, frequency: 523.25, duration: 0.9, gain: 0.024 },
-        { at: 3.1, frequency: 392, duration: 1.0, gain: 0.022 },
-        { at: 4.6, frequency: 329.63, duration: 0.85, gain: 0.022 },
-        { at: 5.6, frequency: 440, duration: 0.95, gain: 0.025 },
-        { at: 6.7, frequency: 523.25, duration: 1.2, gain: 0.02 }
-      ].forEach((note) => {
-        scheduleAmbientNote(context, bellBus, {
-          start: start + note.at,
-          frequency: note.frequency,
-          duration: note.duration,
-          gain: note.gain,
-          attack: 0.018,
-          release: 0.9,
+      scheduleAmbientPhrase(
+        context,
+        bellBus,
+        [
+          { start: start + 0.0, frequency: 392, duration: 0.84, gain: 0.026 },
+          { start: start + 0.58, frequency: 440, duration: 0.42, gain: 0.012, detune: 5 },
+          { start: start + 1.15, frequency: 523.25, duration: 0.88, gain: 0.023 },
+          { start: start + 1.82, frequency: 587.33, duration: 0.52, gain: 0.015, detune: -4 },
+          { start: start + 2.42, frequency: 659.25, duration: 0.72, gain: 0.019 },
+          { start: start + 3.3, frequency: 523.25, duration: 1.08, gain: 0.022 },
+          { start: start + 4.52, frequency: 440, duration: 0.66, gain: 0.017 },
+          { start: start + 5.18, frequency: 392, duration: 0.54, gain: 0.014, detune: 3 },
+          { start: start + 5.86, frequency: 523.25, duration: 0.82, gain: 0.02 },
+          { start: start + 6.58, frequency: 440, duration: 0.48, gain: 0.013 },
+          { start: start + 7.02, frequency: 392, duration: 1.15, gain: 0.021 }
+        ],
+        {
+          attack: 0.014,
+          release: 0.96,
           type: "sine",
-          filterFrequency: 1700
+          filterFrequency: 1850
+        }
+      );
+      scheduleAmbientPhrase(
+        context,
+        fxBus,
+        [
+          { start: start + 0.34, frequency: 784, duration: 0.28, gain: 0.007, type: "triangle", filterFrequency: 2400 },
+          { start: start + 2.7, frequency: 1174.66, duration: 0.24, gain: 0.006, type: "triangle", filterFrequency: 2600 },
+          { start: start + 5.56, frequency: 880, duration: 0.3, gain: 0.0075, type: "triangle", filterFrequency: 2500 }
+        ],
+        {
+          attack: 0.01,
+          release: 0.28
+        }
+      );
+      [
+        { at: 0.76, frequency: 1180, gain: 0.009, duration: 0.09, q: 4.2 },
+        { at: 2.28, frequency: 860, gain: 0.011, duration: 0.12, q: 3.5 },
+        { at: 4.18, frequency: 1420, gain: 0.008, duration: 0.08, q: 4.8 },
+        { at: 6.08, frequency: 920, gain: 0.01, duration: 0.11, q: 3.9 }
+      ].forEach((accent) => {
+        scheduleAmbientNoiseBurst(context, fxBus, {
+          start: start + accent.at,
+          frequency: accent.frequency,
+          gain: accent.gain,
+          duration: accent.duration,
+          filterType: "bandpass",
+          q: accent.q
         });
       });
+      scheduleAmbientBellAccent(context, fxBus, { start: start + 3.92, frequency: 659.25, gain: 0.008, duration: 0.96 });
+      scheduleAmbientBellAccent(context, fxBus, { start: start + 6.72, frequency: 783.99, gain: 0.01, duration: 1.05 });
     });
   } else if (state.ambient.selection === "ferry") {
     addSoftTone(context, padBus, 146.83, 0.018, -2, "sine");
-    addSoftTone(context, padBus, 220, 0.013, 3, "triangle");
-    addLoopedNoise(context, padBus, "lowpass", 240, 0.012);
+    addSoftTone(context, padBus, 220, 0.011, 3, "triangle");
+    addLoopedNoise(context, padBus, "lowpass", 240, 0.01);
+    addLoopedNoise(context, fxBus, "bandpass", 540, 0.006, 0.9);
     startAmbientLoop(context, 10, (start) => {
-      [
-        { at: 0.0, frequency: 293.66, duration: 1.5, gain: 0.024 },
-        { at: 2.0, frequency: 329.63, duration: 1.3, gain: 0.02 },
-        { at: 4.2, frequency: 392, duration: 1.1, gain: 0.021 },
-        { at: 6.4, frequency: 440, duration: 1.4, gain: 0.018 },
-        { at: 8.1, frequency: 329.63, duration: 1.8, gain: 0.017 }
-      ].forEach((note) => {
-        scheduleAmbientNote(context, bellBus, {
-          start: start + note.at,
-          frequency: note.frequency,
-          duration: note.duration,
-          gain: note.gain,
-          attack: 0.03,
-          release: 1.4,
+      scheduleAmbientPhrase(
+        context,
+        bellBus,
+        [
+          { start: start + 0.0, frequency: 293.66, duration: 1.2, gain: 0.022 },
+          { start: start + 1.35, frequency: 329.63, duration: 0.78, gain: 0.015, detune: -5 },
+          { start: start + 2.28, frequency: 392, duration: 0.98, gain: 0.02 },
+          { start: start + 3.92, frequency: 440, duration: 0.86, gain: 0.017 },
+          { start: start + 4.88, frequency: 392, duration: 1.12, gain: 0.019 },
+          { start: start + 6.36, frequency: 349.23, duration: 1.18, gain: 0.018 },
+          { start: start + 7.82, frequency: 329.63, duration: 0.92, gain: 0.016 },
+          { start: start + 8.74, frequency: 293.66, duration: 1.45, gain: 0.017 }
+        ],
+        {
+          attack: 0.028,
+          release: 1.5,
           type: "triangle",
-          filterFrequency: 1300
+          filterFrequency: 1450
+        }
+      );
+      scheduleAmbientPhrase(
+        context,
+        fxBus,
+        [
+          { start: start + 0.44, frequency: 587.33, duration: 1.8, gain: 0.0058, type: "sine", filterFrequency: 1200 },
+          { start: start + 5.74, frequency: 523.25, duration: 1.95, gain: 0.0055, type: "sine", filterFrequency: 1150 }
+        ],
+        {
+          attack: 0.12,
+          release: 1.1
+        }
+      );
+      [
+        { at: 0.22, frequency: 196, gain: 0.013, duration: 2.3 },
+        { at: 5.46, frequency: 220, gain: 0.012, duration: 2.1 }
+      ].forEach((bell) => {
+        scheduleAmbientBellAccent(context, fxBus, { start: start + bell.at, frequency: bell.frequency, gain: bell.gain, duration: bell.duration });
+      });
+      [
+        { at: 1.94, frequency: 310, gain: 0.006, duration: 0.34, q: 0.85 },
+        { at: 4.62, frequency: 470, gain: 0.0075, duration: 0.2, q: 1.15 },
+        { at: 7.38, frequency: 340, gain: 0.0085, duration: 0.28, q: 0.92 }
+      ].forEach((wave) => {
+        scheduleAmbientNoiseBurst(context, fxBus, {
+          start: start + wave.at,
+          frequency: wave.frequency,
+          gain: wave.gain,
+          duration: wave.duration,
+          filterType: "lowpass",
+          q: wave.q
         });
       });
     });
