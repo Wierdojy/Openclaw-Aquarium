@@ -1,5 +1,6 @@
 const starterBooks = [];
 const removedSampleTitles = new Set(["山月记", "雪国", "瓦尔登湖", "局外人"]);
+let activeAccountId = sessionStorage.getItem("muyu-session-user") || "";
 
 const state = {
   books: loadBooks(),
@@ -29,6 +30,10 @@ const state = {
     statusKey: "ttsReady"
   }
 };
+
+function storageKey(key) {
+  return activeAccountId ? `muyu-user:${activeAccountId}:${key}` : `muyu-${key}`;
+}
 
 const translations = {
   zh: {
@@ -174,14 +179,14 @@ function isChineseCharacter(char) {
 
 function loadBooks() {
   const bundledBooks = Array.isArray(window.MUYU_BOOKS) ? window.MUYU_BOOKS : [];
-  const saved = localStorage.getItem("muyu-books");
+  const saved = localStorage.getItem(storageKey("books"));
   if (!saved) return applySavedBookProgress(bundledBooks.concat(starterBooks));
   try {
     const savedBooks = JSON.parse(saved);
     const bundledTitles = new Set(bundledBooks.map((book) => book.title));
     const savedUserBooks = savedBooks.filter((book) => !bundledTitles.has(book.title) && !removedSampleTitles.has(book.title));
     if (savedUserBooks.length !== savedBooks.length) {
-      localStorage.setItem("muyu-books", JSON.stringify(savedUserBooks));
+      localStorage.setItem(storageKey("books"), JSON.stringify(savedUserBooks));
     }
     const savedTitles = new Set(savedUserBooks.map((book) => book.title));
     const newBundledBooks = bundledBooks.filter((book) => !savedTitles.has(book.title));
@@ -194,27 +199,27 @@ function loadBooks() {
 function saveBooks() {
   const bundledTitles = new Set((window.MUYU_BOOKS || []).concat(starterBooks).map((book) => book.title));
   const userBooks = state.books.filter((book) => !bundledTitles.has(book.title) && !removedSampleTitles.has(book.title));
-  localStorage.setItem("muyu-books", JSON.stringify(userBooks));
+  localStorage.setItem(storageKey("books"), JSON.stringify(userBooks));
 }
 
 function loadDisplayName() {
-  return localStorage.getItem("muyu-display-name") || "袁孝正";
+  return localStorage.getItem(storageKey("display-name")) || "袁孝正";
 }
 
 function saveDisplayName() {
-  localStorage.setItem("muyu-display-name", state.displayName);
+  localStorage.setItem(storageKey("display-name"), state.displayName);
 }
 
 function loadLanguage() {
-  return localStorage.getItem("muyu-language") || "zh";
+  return localStorage.getItem(storageKey("language")) || "zh";
 }
 
 function saveLanguage() {
-  localStorage.setItem("muyu-language", state.language);
+  localStorage.setItem(storageKey("language"), state.language);
 }
 
 function loadReadingStats() {
-  const saved = localStorage.getItem("muyu-reading-stats");
+  const saved = localStorage.getItem(storageKey("reading-stats"));
   if (!saved) return {};
   try {
     const parsed = JSON.parse(saved);
@@ -231,11 +236,11 @@ function loadReadingStats() {
 }
 
 function saveReadingStats() {
-  localStorage.setItem("muyu-reading-stats", JSON.stringify(state.readingStats));
+  localStorage.setItem(storageKey("reading-stats"), JSON.stringify(state.readingStats));
 }
 
 function loadBookProgress() {
-  const saved = localStorage.getItem("muyu-book-progress");
+  const saved = localStorage.getItem(storageKey("book-progress"));
   if (!saved) return {};
   try {
     return JSON.parse(saved);
@@ -245,24 +250,122 @@ function loadBookProgress() {
 }
 
 function saveBookProgress() {
-  localStorage.setItem("muyu-book-progress", JSON.stringify(state.bookProgress));
+  localStorage.setItem(storageKey("book-progress"), JSON.stringify(state.bookProgress));
 }
 
 function loadTtsVoice() {
-  return localStorage.getItem("muyu-tts-voice") || "";
+  return localStorage.getItem(storageKey("tts-voice")) || "";
 }
 
 function saveTtsVoice() {
-  localStorage.setItem("muyu-tts-voice", state.tts.voiceURI);
+  localStorage.setItem(storageKey("tts-voice"), state.tts.voiceURI);
 }
 
 function loadTtsRate() {
-  const saved = Number(localStorage.getItem("muyu-tts-rate"));
+  const saved = Number(localStorage.getItem(storageKey("tts-rate")));
   return Number.isFinite(saved) && saved >= 0.6 && saved <= 1.8 ? saved : 1;
 }
 
 function saveTtsRate() {
-  localStorage.setItem("muyu-tts-rate", String(state.tts.rate));
+  localStorage.setItem(storageKey("tts-rate"), String(state.tts.rate));
+}
+
+function normalizeAccountName(name) {
+  return name.trim().toLowerCase();
+}
+
+function loadAccounts() {
+  const saved = localStorage.getItem("muyu-accounts");
+  if (!saved) return {};
+  try {
+    return JSON.parse(saved);
+  } catch (error) {
+    return {};
+  }
+}
+
+function saveAccounts(accounts) {
+  localStorage.setItem("muyu-accounts", JSON.stringify(accounts));
+}
+
+function hasAccounts() {
+  return Object.keys(loadAccounts()).length > 0;
+}
+
+function setAuthMode(mode) {
+  const isCreate = mode === "create";
+  document.querySelector("#authModeLabel").textContent = isCreate ? "创建账户" : "登录";
+  document.querySelector("#authTitle").textContent = isCreate ? "创建沐浴读书账户" : "登录沐浴读书";
+  document.querySelector("#authSubmit").textContent = isCreate ? "创建账户" : "登录";
+  document.querySelector("#authModeToggle").textContent = isCreate ? "已有账户？登录" : "新用户？创建账户";
+  document.querySelector("#authForm").dataset.mode = mode;
+}
+
+function showAuth(message = "") {
+  stopTts("ttsIdle");
+  syncReadingTimer();
+  document.body.classList.add("auth-locked");
+  document.querySelector("#authOverlay").hidden = false;
+  setAuthMode(hasAccounts() ? "login" : "create");
+  const error = document.querySelector("#authError");
+  error.textContent = message;
+  error.hidden = !message;
+}
+
+function unlockApp(accountId) {
+  activeAccountId = accountId;
+  sessionStorage.setItem("muyu-session-user", accountId);
+  document.body.classList.remove("auth-locked");
+  document.querySelector("#authOverlay").hidden = true;
+  loadAccountState();
+  setDateLabel();
+  renderAll();
+}
+
+function loadAccountState() {
+  const accounts = loadAccounts();
+  const account = accounts[activeAccountId];
+  state.books = loadBooks();
+  state.displayName = loadDisplayName();
+  if (account && account.displayName && state.displayName === "袁孝正") {
+    state.displayName = account.displayName;
+    saveDisplayName();
+  }
+  state.language = loadLanguage();
+  state.readingStats = loadReadingStats();
+  state.bookProgress = loadBookProgress();
+  state.currentBook = 0;
+  state.currentChapter = 0;
+  state.currentReaderText = "";
+  state.dictionarySelection = null;
+  state.tts.voiceURI = loadTtsVoice();
+  state.tts.rate = loadTtsRate();
+  state.tts.charIndex = 0;
+  state.tts.statusKey = "ttsReady";
+}
+
+function createAccount(name, pin) {
+  const accountId = normalizeAccountName(name);
+  const accounts = loadAccounts();
+  if (!accountId || !pin) return "请输入用户名和 PIN";
+  if (accounts[accountId]) return "这个用户名已经存在";
+  accounts[accountId] = {
+    displayName: name.trim(),
+    pin
+  };
+  saveAccounts(accounts);
+  activeAccountId = accountId;
+  localStorage.setItem(storageKey("display-name"), name.trim());
+  unlockApp(accountId);
+  return "";
+}
+
+function loginAccount(name, pin) {
+  const accountId = normalizeAccountName(name);
+  const accounts = loadAccounts();
+  if (!accounts[accountId] || accounts[accountId].pin !== pin) return "用户名或 PIN 不正确";
+  unlockApp(accountId);
+  return "";
 }
 
 function applySavedBookProgress(books) {
@@ -837,6 +940,7 @@ function clearActiveReaderTerms() {
 function showDefinition(anchor, term, activeTargets) {
   const [pinyin, meaning] = characterDictionary[term] || [t("unknownPinyin"), t("unknownMeaning")];
   const popover = document.querySelector("#definitionPopover");
+  const audioIndex = activeTargets.length ? Number(activeTargets[0].dataset.index) : Number(anchor.dataset.index);
   clearActiveReaderTerms();
   activeTargets.forEach((node, index) => {
     node.classList.add("active");
@@ -846,6 +950,7 @@ function showDefinition(anchor, term, activeTargets) {
   document.querySelector("#definitionChar").textContent = term;
   document.querySelector("#definitionPinyin").textContent = formatPinyin(pinyin);
   document.querySelector("#definitionMeaning").textContent = meaning;
+  if (state.dictionarySelection) state.dictionarySelection.audioIndex = audioIndex;
   popover.hidden = false;
   positionDefinitionPopover(anchor, popover);
 }
@@ -1004,6 +1109,12 @@ document.querySelector("#readerText").addEventListener("click", (event) => {
 });
 
 document.querySelector("#definitionPopover").addEventListener("click", hideDefinition);
+document.querySelector("#definitionAudioJump").addEventListener("click", (event) => {
+  event.stopPropagation();
+  const index = state.dictionarySelection && typeof state.dictionarySelection.audioIndex === "number" ? state.dictionarySelection.audioIndex : 0;
+  restartTtsFrom(index);
+  hideDefinition();
+});
 window.addEventListener("scroll", hideDefinition, { passive: true });
 window.addEventListener("resize", hideDefinition);
 
@@ -1027,8 +1138,36 @@ document.querySelector("#profileForm").addEventListener("submit", (event) => {
   if (!nextName) return;
   state.displayName = nextName;
   saveDisplayName();
+  const accounts = loadAccounts();
+  if (accounts[activeAccountId]) {
+    accounts[activeAccountId].displayName = nextName;
+    saveAccounts(accounts);
+  }
   updateProfile();
   setView("home");
+});
+
+document.querySelector("#logoutButton").addEventListener("click", () => {
+  sessionStorage.removeItem("muyu-session-user");
+  activeAccountId = "";
+  showAuth();
+});
+
+document.querySelector("#authForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const mode = event.currentTarget.dataset.mode || "login";
+  const name = document.querySelector("#authNameInput").value;
+  const pin = document.querySelector("#authPinInput").value;
+  const message = mode === "create" ? createAccount(name, pin) : loginAccount(name, pin);
+  const error = document.querySelector("#authError");
+  error.textContent = message;
+  error.hidden = !message;
+});
+
+document.querySelector("#authModeToggle").addEventListener("click", () => {
+  const mode = document.querySelector("#authForm").dataset.mode === "create" ? "login" : "create";
+  document.querySelector("#authError").hidden = true;
+  setAuthMode(mode);
 });
 
 document.querySelectorAll("[data-chapter-action]").forEach((button) => {
@@ -1071,5 +1210,16 @@ function renderAll() {
   renderReader();
 }
 
-setDateLabel();
-renderAll();
+function initializeApp() {
+  const accounts = loadAccounts();
+  if (!activeAccountId || !accounts[activeAccountId]) {
+    sessionStorage.removeItem("muyu-session-user");
+    showAuth();
+    return;
+  }
+  loadAccountState();
+  setDateLabel();
+  renderAll();
+}
+
+initializeApp();
