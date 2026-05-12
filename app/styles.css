@@ -29,6 +29,11 @@ body {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
+body.auth-locked .shell {
+  filter: blur(6px);
+  pointer-events: none;
+}
+
 button,
 input,
 textarea {
@@ -261,6 +266,10 @@ h3 {
   width: 100%;
 }
 
+.secondary-button {
+  background: var(--surface-high);
+}
+
 .read-button {
   background: var(--sage);
   color: var(--ink);
@@ -433,7 +442,7 @@ h3 {
 
 .reader-page {
   margin-top: 24px;
-  padding: 4px 0;
+  padding: 4px 0 132px;
 }
 
 .reader-page p {
@@ -488,7 +497,7 @@ h3 {
   z-index: 20;
   width: min(300px, calc(100vw - 24px));
   display: grid;
-  grid-template-columns: minmax(44px, max-content) 1fr;
+  grid-template-columns: minmax(44px, max-content) 1fr 40px;
   align-items: center;
   gap: 10px;
   padding: 10px;
@@ -496,6 +505,11 @@ h3 {
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 12px 28px rgba(74, 101, 78, 0.18);
+}
+
+.definition-audio-button {
+  background: var(--blue-soft);
+  color: var(--blue-dark);
 }
 
 .definition-popover::after {
@@ -573,12 +587,18 @@ h3 {
 }
 
 .tts-panel {
+  position: sticky;
+  bottom: 10px;
+  z-index: 12;
   margin-top: 14px;
   display: grid;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 18px;
-  background: var(--surface);
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(136, 166, 176, 0.32);
+  border-radius: 16px;
+  background: rgba(201, 232, 242, 0.94);
+  box-shadow: 0 12px 24px rgba(30, 60, 68, 0.12);
+  backdrop-filter: blur(12px);
 }
 
 .tts-heading,
@@ -592,10 +612,16 @@ h3 {
 
 .tts-panel .icon-button {
   background: var(--surface-low);
+  color: var(--blue-dark);
+}
+
+.tts-panel .caption {
+  color: var(--blue-dark);
 }
 
 .tts-play-button {
-  background: var(--sage-soft);
+  background: var(--blue);
+  color: var(--ink);
 }
 
 .tts-play-button .tts-icon-pause {
@@ -612,9 +638,9 @@ h3 {
 
 .tts-heading strong {
   display: block;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 18px;
+  color: var(--blue-dark);
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 800;
 }
 
@@ -622,8 +648,8 @@ h3 {
   flex: 0 0 auto;
   border-radius: 999px;
   background: var(--surface-low);
-  color: var(--ink);
-  padding: 6px 10px;
+  color: var(--blue-dark);
+  padding: 5px 9px;
   font-size: 12px;
   font-weight: 800;
 }
@@ -633,12 +659,12 @@ h3 {
 }
 
 .mini-button {
-  min-height: 34px;
+  min-height: 30px;
   border: 0;
   border-radius: 999px;
   background: var(--surface-low);
-  color: var(--ink);
-  padding: 0 12px;
+  color: var(--blue-dark);
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 800;
 }
@@ -648,7 +674,7 @@ h3 {
   grid-template-columns: max-content 64px;
   align-items: center;
   gap: 8px;
-  color: var(--muted);
+  color: var(--blue-dark);
   font-size: 11px;
   font-weight: 800;
 }
@@ -658,20 +684,20 @@ h3 {
   border: 0;
   border-radius: 999px;
   background: var(--surface-low);
-  color: var(--ink);
-  padding: 8px 10px;
+  color: var(--blue-dark);
+  padding: 7px 10px;
   outline: 2px solid transparent;
 }
 
 .tts-jump-row input:focus {
-  outline-color: var(--sage-soft);
+  outline-color: var(--blue);
 }
 
 .tts-progress {
   height: 8px;
   border-radius: 999px;
   overflow: hidden;
-  background: #dbdad5;
+  background: rgba(136, 166, 176, 0.28);
 }
 
 .tts-progress span {
@@ -679,7 +705,61 @@ h3 {
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: var(--sage);
+  background: var(--blue);
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(234, 232, 227, 0.86);
+  backdrop-filter: blur(10px);
+}
+
+.auth-overlay[hidden] {
+  display: none;
+}
+
+.auth-card {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--background);
+  box-shadow: var(--shadow);
+}
+
+.auth-card label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-card input {
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 14px 16px;
+  outline: 2px solid transparent;
+}
+
+.auth-card input:focus {
+  outline-color: var(--sage-soft);
+}
+
+.auth-error {
+  margin: 0;
+  color: #8f3f36;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .profile-view {
