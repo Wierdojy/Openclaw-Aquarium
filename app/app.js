@@ -26,6 +26,7 @@ const state = {
     isPlaying: false,
     isPaused: false,
     requestedStop: false,
+    playbackId: 0,
     charIndex: 0,
     statusKey: "ttsReady"
   }
@@ -92,6 +93,11 @@ const translations = {
     ttsStop: "停止朗读",
     ttsBack: "后退 100 字",
     ttsForward: "前进 100 字",
+    toc: "目录",
+    tocCaption: "章节",
+    tocTitle: "目录",
+    tocClose: "关闭目录",
+    tocCurrent: "当前",
     unknownPinyin: "未收录",
     unknownMeaning: "No local definition yet",
     languageToggle: "EN"
@@ -152,6 +158,11 @@ const translations = {
     ttsStop: "Stop reading",
     ttsBack: "Back 100 characters",
     ttsForward: "Forward 100 characters",
+    toc: "Table of contents",
+    tocCaption: "Chapters",
+    tocTitle: "Contents",
+    tocClose: "Close contents",
+    tocCurrent: "Current",
     unknownPinyin: "Not saved",
     unknownMeaning: "No local definition yet",
     languageToggle: "中"
@@ -520,6 +531,7 @@ function applyLanguage() {
   updateTtsUi();
   renderLibrary();
   renderReadingRhythm();
+  renderToc();
 }
 
 function coverClass(index) {
@@ -641,8 +653,52 @@ function renderReader() {
   document.querySelector("#currentProgressPath").setAttribute("aria-label", `阅读进度 ${progress}%`);
   renderHomeBooks();
   renderLibrary();
+  renderToc();
   updateChapterControls();
   updateTtsUi();
+}
+
+function renderToc() {
+  const book = getCurrentBook();
+  const list = document.querySelector("#tocList");
+  if (!book || !list) return;
+  const caption = document.querySelector("#tocPanel .caption");
+  if (caption) caption.textContent = book.title;
+  list.innerHTML = "";
+  book.chapters.forEach((chapter, index) => {
+    const button = document.createElement("button");
+    const number = document.createElement("span");
+    const name = document.createElement("span");
+    const current = document.createElement("span");
+    button.className = "toc-item";
+    button.type = "button";
+    button.dataset.chapterIndex = String(index);
+    button.classList.toggle("active", index === state.currentChapter);
+    if (index === state.currentChapter) button.setAttribute("aria-current", "true");
+    number.className = "toc-number";
+    number.textContent = String(index + 1);
+    name.className = "toc-name";
+    name.textContent = chapter.title;
+    current.className = "toc-current";
+    current.textContent = index === state.currentChapter ? t("tocCurrent") : "";
+    button.append(number, name, current);
+    list.append(button);
+  });
+}
+
+function openToc() {
+  const panel = document.querySelector("#tocPanel");
+  if (!panel) return;
+  renderToc();
+  panel.hidden = false;
+  document.querySelector("#tocToggle").setAttribute("aria-expanded", "true");
+}
+
+function closeToc() {
+  const panel = document.querySelector("#tocPanel");
+  if (!panel) return;
+  panel.hidden = true;
+  document.querySelector("#tocToggle").setAttribute("aria-expanded", "false");
 }
 
 function normalizeTtsText(text) {
@@ -757,9 +813,29 @@ function highlightTtsCharacter(index) {
   if (target) target.classList.add("speaking");
 }
 
-function setTtsCharacterIndex(index, shouldScroll = false) {
+function clampTtsCharacterIndex(index) {
   const maxIndex = Math.max(0, state.currentReaderText.length - 1);
-  state.tts.charIndex = Math.min(Math.max(0, index), maxIndex);
+  return Math.min(Math.max(0, index), maxIndex);
+}
+
+function findTtsChunkIndexAt(chunks, index) {
+  if (!chunks.length) return -1;
+  const clampedIndex = clampTtsCharacterIndex(index);
+  const containingIndex = chunks.findIndex((chunk) => clampedIndex >= chunk.start && clampedIndex < chunk.end);
+  if (containingIndex >= 0) return containingIndex;
+  const nextIndex = chunks.findIndex((chunk) => clampedIndex < chunk.start);
+  return nextIndex >= 0 ? nextIndex : chunks.length - 1;
+}
+
+function getTtsStartIndexForChunk(chunks, index) {
+  const chunkIndex = findTtsChunkIndexAt(chunks, index);
+  if (chunkIndex < 0) return 0;
+  const chunk = chunks[chunkIndex];
+  return clampTtsCharacterIndex(Math.min(Math.max(index, chunk.start), chunk.end - 1));
+}
+
+function setTtsCharacterIndex(index, shouldScroll = false) {
+  state.tts.charIndex = clampTtsCharacterIndex(index);
   highlightTtsCharacter(state.tts.charIndex);
   updateTtsUi();
   if (shouldScroll) {
@@ -781,6 +857,7 @@ function speakNextTtsChunk() {
   }
 
   const chunkOffset = state.tts.charIndex > chunk.start && state.tts.charIndex < chunk.end ? state.tts.charIndex - chunk.start : 0;
+  const playbackId = state.tts.playbackId;
   const utterance = new SpeechSynthesisUtterance(chunk.text.slice(chunkOffset));
   const voice = getSelectedTtsVoice();
   if (voice) utterance.voice = voice;
@@ -788,17 +865,19 @@ function speakNextTtsChunk() {
   utterance.rate = state.tts.rate;
   utterance.pitch = 1;
   utterance.onboundary = (event) => {
+    if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
     if (typeof event.charIndex === "number") {
       setTtsCharacterIndex(chunk.start + chunkOffset + event.charIndex, false);
     }
   };
   utterance.onend = () => {
-    if (state.tts.requestedStop) return;
+    if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
     setTtsCharacterIndex(chunk.end, false);
     state.tts.chunkIndex += 1;
     speakNextTtsChunk();
   };
   utterance.onerror = () => {
+    if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
     state.tts.isPlaying = false;
     state.tts.isPaused = false;
     setTtsStatus("ttsStopped");
@@ -806,20 +885,36 @@ function speakNextTtsChunk() {
   window.speechSynthesis.speak(utterance);
 }
 
+function prepareTtsAt(startIndex, statusKey = "ttsIdle", shouldScroll = false) {
+  const chunks = chunkTtsText(state.currentReaderText);
+  state.tts.requestedStop = true;
+  state.tts.playbackId += 1;
+  window.speechSynthesis.cancel();
+  state.tts.chunks = chunks;
+  state.tts.chunkIndex = findTtsChunkIndexAt(chunks, startIndex);
+  state.tts.utterance = null;
+  state.tts.isPlaying = false;
+  state.tts.isPaused = false;
+  const seekIndex = chunks.length ? getTtsStartIndexForChunk(chunks, startIndex) : startIndex;
+  setTtsCharacterIndex(seekIndex, shouldScroll);
+  setTtsStatus(statusKey);
+  return chunks.length > 0;
+}
+
 function startTts(startIndex = state.tts.charIndex) {
   if (!state.tts.supported) return;
   const chunks = chunkTtsText(state.currentReaderText);
   if (!chunks.length) return;
+  state.tts.requestedStop = true;
+  state.tts.playbackId += 1;
   window.speechSynthesis.cancel();
   state.tts.chunks = chunks;
-  state.tts.charIndex = Math.max(0, Math.min(startIndex, state.currentReaderText.length - 1));
-  state.tts.chunkIndex = Math.max(
-    0,
-    chunks.findIndex((chunk) => state.tts.charIndex >= chunk.start && state.tts.charIndex < chunk.end)
-  );
+  state.tts.charIndex = getTtsStartIndexForChunk(chunks, startIndex);
+  state.tts.chunkIndex = findTtsChunkIndexAt(chunks, state.tts.charIndex);
   state.tts.isPlaying = true;
   state.tts.isPaused = false;
   state.tts.requestedStop = false;
+  highlightTtsCharacter(state.tts.charIndex);
   setTtsStatus("ttsPlaying");
   speakNextTtsChunk();
 }
@@ -849,6 +944,7 @@ function toggleTts() {
 function stopTts(statusKey = "ttsStopped") {
   if (!state.tts.supported) return;
   state.tts.requestedStop = true;
+  state.tts.playbackId += 1;
   window.speechSynthesis.cancel();
   state.tts.chunks = [];
   state.tts.chunkIndex = 0;
@@ -860,14 +956,31 @@ function stopTts(statusKey = "ttsStopped") {
 }
 
 function restartTtsFrom(charIndex) {
-  const wasActive = state.tts.isPlaying || state.tts.isPaused;
-  stopTts("ttsIdle");
-  setTtsCharacterIndex(charIndex, !wasActive);
-  if (wasActive) startTts(state.tts.charIndex);
+  if (!state.tts.supported) return;
+  const wasPlaying = state.tts.isPlaying && !state.tts.isPaused;
+  const wasPaused = state.tts.isPlaying && state.tts.isPaused;
+  const shouldScroll = !wasPlaying && !wasPaused;
+  if (wasPlaying) {
+    startTts(charIndex);
+    return;
+  }
+  if (wasPaused) {
+    if (!prepareTtsAt(charIndex, "ttsPaused", shouldScroll)) return;
+    state.tts.isPlaying = true;
+    state.tts.isPaused = true;
+    updateTtsUi();
+    return;
+  }
+  prepareTtsAt(charIndex, "ttsIdle", shouldScroll);
 }
 
 function nudgeTtsCharacterOffset(amount) {
   restartTtsFrom(state.tts.charIndex + amount);
+}
+
+function startTtsFromDictionary(index) {
+  if (!state.tts.supported) return;
+  startTts(index);
 }
 
 function setTtsRate(rate) {
@@ -879,13 +992,9 @@ function setTtsRate(rate) {
   if (wasPlaying) {
     startTts(currentIndex);
   } else if (wasPaused) {
-    state.tts.requestedStop = true;
-    window.speechSynthesis.cancel();
-    state.tts.charIndex = currentIndex;
+    if (!prepareTtsAt(currentIndex, "ttsPaused", false)) return;
     state.tts.isPlaying = true;
     state.tts.isPaused = true;
-    setTtsStatus("ttsPaused");
-    return;
   }
   updateTtsUi();
 }
@@ -1061,6 +1170,7 @@ function syncReadingTimer() {
 function setView(viewName) {
   if (state.activeView === "reader" && viewName !== "reader") {
     stopTts("ttsIdle");
+    closeToc();
   }
   state.activeView = viewName;
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
@@ -1095,9 +1205,18 @@ function updateChapterControls() {
 }
 
 function changeChapter(direction) {
-  const book = state.books[state.currentBook];
   const nextChapter = state.currentChapter + direction;
+  jumpToChapter(nextChapter);
+}
+
+function jumpToChapter(nextChapter) {
+  const book = state.books[state.currentBook];
   if (nextChapter < 0 || nextChapter >= book.chapters.length) return;
+  closeToc();
+  if (nextChapter === state.currentChapter) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
   stopTts("ttsIdle");
   state.currentChapter = nextChapter;
   renderReader();
@@ -1155,7 +1274,7 @@ document.querySelector("#definitionPopover").addEventListener("click", hideDefin
 document.querySelector("#definitionAudioJump").addEventListener("click", (event) => {
   event.stopPropagation();
   const index = state.dictionarySelection && typeof state.dictionarySelection.audioIndex === "number" ? state.dictionarySelection.audioIndex : 0;
-  restartTtsFrom(index);
+  startTtsFromDictionary(index);
   hideDefinition();
 });
 window.addEventListener("scroll", hideDefinition, { passive: true });
@@ -1217,6 +1336,27 @@ document.querySelectorAll("[data-chapter-action]").forEach((button) => {
   button.addEventListener("click", () => {
     changeChapter(button.dataset.chapterAction === "next" ? 1 : -1);
   });
+});
+
+document.querySelector("#tocToggle").addEventListener("click", () => {
+  const panel = document.querySelector("#tocPanel");
+  if (panel.hidden) {
+    openToc();
+  } else {
+    closeToc();
+  }
+});
+
+document.querySelector("#tocClose").addEventListener("click", closeToc);
+
+document.querySelector("#tocPanel").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeToc();
+});
+
+document.querySelector("#tocList").addEventListener("click", (event) => {
+  const item = event.target.closest(".toc-item");
+  if (!item) return;
+  jumpToChapter(Number(item.dataset.chapterIndex));
 });
 
 document.querySelector("#ttsToggle").addEventListener("click", toggleTts);
