@@ -9,7 +9,7 @@ const metadata = {
   "鬼吹灯_精绝古城.txt": {
     title: "鬼吹灯之精绝古城",
     author: "天下霸唱",
-    color: "sage"
+    color: "blue"
   }
 };
 
