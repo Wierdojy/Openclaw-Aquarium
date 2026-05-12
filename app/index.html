@@ -32,20 +32,20 @@
 
         <nav class="tabs" aria-label="主要视图">
           <button class="tab active" data-view="home" data-i18n="tabHome" type="button">今日</button>
-          <button class="tab" data-view="library" data-i18n="tabLibrary" type="button">书架</button>
-          <button class="tab" data-view="reader" data-i18n="tabReader" type="button">阅读</button>
+          <button class="tab tab-library" data-view="library" data-i18n="tabLibrary" type="button">书架</button>
+          <button class="tab tab-reader" data-view="reader" data-i18n="tabReader" type="button">阅读</button>
         </nav>
 
         <section class="view active" id="homeView">
           <article class="continue-panel">
-            <div class="section-kicker" data-i18n="continueReading">继续阅读</div>
+            <div class="section-kicker reading-accent" data-i18n="continueReading">继续阅读</div>
             <h2 id="currentTitle">鬼吹灯之精绝古城</h2>
             <p class="chapter-line" id="currentChapter">引子 · 0%</p>
             <div class="progress-path" aria-label="阅读进度 0%" id="currentProgressPath">
               <span id="currentProgressFill"></span>
             </div>
             <p class="excerpt" id="currentExcerpt">盗墓不是游览观光，不是吟诗作对。</p>
-            <button class="primary-button" type="button" data-open-reader data-i18n="continueReading">继续阅读</button>
+            <button class="primary-button read-button" type="button" data-open-reader data-i18n="continueReading">继续阅读</button>
           </article>
 
           <section class="rhythm-section">
@@ -60,7 +60,7 @@
             <div class="week-row" id="weekRow"></div>
           </section>
 
-          <section class="library-preview">
+          <section class="library-preview browsing-section">
             <div class="section-heading">
               <div>
                 <h3 data-i18n="recentTitle">近期阅读</h3>
@@ -71,7 +71,7 @@
           </section>
         </section>
 
-        <section class="view" id="libraryView">
+        <section class="view browsing-section" id="libraryView">
           <div class="section-heading page-heading">
             <div>
               <h3 data-i18n="libraryTitle">我的书架</h3>
