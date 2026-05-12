@@ -1,8 +1,8 @@
-# Openclaw Aquarium 🐠
+# 沐浴 Chinese Reader 🛁
 
 A modern web reader for Chinese literature, built with the help of Codex.
 
-Aquarium lets you read, search, and navigate Chinese novels with a clean, distraction-free interface. Start with classic adventure novels and expand your library.
+沐浴 (Mùyù) means "to bathe" — immerse yourself in Chinese literature.
 
 ## Features (Planned)
 
@@ -16,7 +16,7 @@ Aquarium lets you read, search, and navigate Chinese novels with a clean, distra
 ## Project Structure
 
 ```
-Openclaw-Aquarium/
+Muyu-Chinese-Reader/
 ├── book/                      # Novel text files (plain text)
 │   └── 鬼吹灯_精绝古城.txt   # Sample: Ghost Blows Out the Lamp (Book 1)
 ├── app/                        # Application source code (Codex workspace)
@@ -38,8 +38,8 @@ Openclaw-Aquarium/
 
 1. Clone the repo
    ```bash
-   git clone https://github.com/Wierdojy/Openclaw-Aquarium.git
-   cd Openclaw-Aquarium
+   git clone https://github.com/Wierdojy/Muyu-Chinese-Reader.git
+   cd Muyu-Chinese-Reader
    ```
 
 2. Install dependencies
@@ -70,4 +70,4 @@ This project is under active development with Codex. Feel free to open issues or
 
 ---
 
-*Openclaw Aquarium — Dive into Chinese literature.* 🐠
+*沐浴 Chinese Reader — Dive into Chinese literature.* 🛁
