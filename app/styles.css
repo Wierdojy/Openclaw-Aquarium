@@ -92,6 +92,18 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .brand-name {
   margin: 0 0 6px;
   color: var(--muted);
@@ -431,6 +443,49 @@ h3 {
 .library-card .cover {
   height: 96px;
   margin: 0;
+}
+
+.library-search {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 0 14px;
+  min-height: 46px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.library-search svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.library-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 12px 0;
+  outline: none;
+}
+
+.library-empty {
+  margin: 8px 0 0;
+  padding: 18px 14px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
 }
 
 .reader-view {
@@ -961,6 +1016,77 @@ h3 {
 
 .profile-form input:focus {
   outline-color: var(--sage-soft);
+}
+
+.ambient-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.ambient-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ambient-mute-button {
+  background: var(--surface-low);
+}
+
+.ambient-mute-button .ambient-icon-muted {
+  display: none;
+}
+
+.ambient-mute-button.is-muted .ambient-icon-sound {
+  display: none;
+}
+
+.ambient-mute-button.is-muted .ambient-icon-muted {
+  display: block;
+}
+
+.ambient-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.ambient-option {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ambient-option.active {
+  background: var(--sage-soft);
+  color: var(--ink);
+}
+
+.ambient-volume {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ambient-volume input {
+  width: 100%;
+  accent-color: var(--sage-dark);
+}
+
+.ambient-panel.is-muted .ambient-volume,
+.ambient-panel.is-muted .ambient-options {
+  opacity: 0.78;
 }
 
 @media (max-width: 440px) {
