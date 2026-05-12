@@ -75,13 +75,13 @@ const translations = {
     authMissing: "请输入用户名和 PIN",
     authExists: "这个用户名已经存在",
     authBadLogin: "用户名或 PIN 不正确",
-    ttsIdle: "准备朗读",
-    ttsReady: "准备朗读",
+    ttsIdle: "准备播放",
+    ttsReady: "准备播放",
     ttsTitle: "朗读",
-    ttsPlaying: "正在朗读",
+    ttsPlaying: "播放中",
     ttsPaused: "已暂停",
     ttsStopped: "已停止",
-    ttsDone: "本章朗读完成",
+    ttsDone: "本章完成",
     ttsUnsupported: "此浏览器不支持朗读",
     ttsVoiceLoading: "正在载入声音",
     ttsVoiceFallback: "浏览器默认声音",
@@ -92,9 +92,6 @@ const translations = {
     ttsStop: "停止朗读",
     ttsBack: "后退 100 字",
     ttsForward: "前进 100 字",
-    ttsSlower: "慢一点",
-    ttsFaster: "快一点",
-    ttsJumpLabel: "跳到字",
     unknownPinyin: "未收录",
     unknownMeaning: "No local definition yet",
     languageToggle: "EN"
@@ -155,9 +152,6 @@ const translations = {
     ttsStop: "Stop reading",
     ttsBack: "Back 100 characters",
     ttsForward: "Forward 100 characters",
-    ttsSlower: "Slower",
-    ttsFaster: "Faster",
-    ttsJumpLabel: "Go to character",
     unknownPinyin: "Not saved",
     unknownMeaning: "No local definition yet",
     languageToggle: "中"
@@ -724,9 +718,7 @@ function updateTtsUi() {
   const status = document.querySelector("#ttsStatus");
   const back = document.querySelector("#ttsBack");
   const forward = document.querySelector("#ttsForward");
-  const slower = document.querySelector("#ttsSlower");
-  const faster = document.querySelector("#ttsFaster");
-  const jumpInput = document.querySelector("#ttsJumpInput");
+  const rateSlider = document.querySelector("#ttsRateSlider");
   const rateLabel = document.querySelector("#ttsRateLabel");
   const progressFill = document.querySelector("#ttsProgressFill");
   toggle.classList.toggle("is-playing", state.tts.isPlaying && !state.tts.isPaused);
@@ -735,10 +727,9 @@ function updateTtsUi() {
   stop.setAttribute("aria-label", t("ttsStop"));
   status.textContent = state.tts.supported ? t(state.tts.statusKey) : t("ttsUnsupported");
   if (rateLabel) rateLabel.textContent = `${state.tts.rate.toFixed(2).replace(/0$/, "")}x`;
-  if (jumpInput) {
-    jumpInput.max = String(Math.max(state.currentReaderText.length, 1));
-    jumpInput.value = String(Math.min(state.tts.charIndex + 1, Number(jumpInput.max)));
-    jumpInput.disabled = !state.tts.supported;
+  if (rateSlider) {
+    rateSlider.value = String(state.tts.rate);
+    rateSlider.disabled = !state.tts.supported;
   }
   if (progressFill) {
     const total = Math.max(state.currentReaderText.length, 1);
@@ -746,7 +737,7 @@ function updateTtsUi() {
   }
   toggle.disabled = !state.tts.supported;
   stop.disabled = !state.tts.supported || (!state.tts.isPlaying && !state.tts.isPaused);
-  [back, forward, slower, faster].forEach((button) => {
+  [back, forward].forEach((button) => {
     if (button) button.disabled = !state.tts.supported;
   });
 }
@@ -842,7 +833,12 @@ function toggleTts() {
     return;
   }
   if (state.tts.isPlaying && state.tts.isPaused) {
-    window.speechSynthesis.resume();
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    } else {
+      startTts(state.tts.charIndex);
+      return;
+    }
     state.tts.isPaused = false;
     setTtsStatus("ttsPlaying");
     return;
@@ -875,9 +871,22 @@ function nudgeTtsCharacterOffset(amount) {
 }
 
 function setTtsRate(rate) {
+  const wasPlaying = state.tts.isPlaying && !state.tts.isPaused;
+  const wasPaused = state.tts.isPlaying && state.tts.isPaused;
+  const currentIndex = state.tts.charIndex;
   state.tts.rate = Math.max(0.6, Math.min(1.8, rate));
   saveTtsRate();
-  if (state.tts.isPlaying || state.tts.isPaused) startTts(state.tts.charIndex);
+  if (wasPlaying) {
+    startTts(currentIndex);
+  } else if (wasPaused) {
+    state.tts.requestedStop = true;
+    window.speechSynthesis.cancel();
+    state.tts.charIndex = currentIndex;
+    state.tts.isPlaying = true;
+    state.tts.isPaused = true;
+    setTtsStatus("ttsPaused");
+    return;
+  }
   updateTtsUi();
 }
 
@@ -1218,14 +1227,8 @@ document.querySelector("#ttsBack").addEventListener("click", () => nudgeTtsChara
 
 document.querySelector("#ttsForward").addEventListener("click", () => nudgeTtsCharacterOffset(100));
 
-document.querySelector("#ttsSlower").addEventListener("click", () => setTtsRate(state.tts.rate - 0.05));
-
-document.querySelector("#ttsFaster").addEventListener("click", () => setTtsRate(state.tts.rate + 0.05));
-
-document.querySelector("#ttsJumpInput").addEventListener("change", (event) => {
-  const requestedIndex = Number(event.target.value) - 1;
-  if (!Number.isFinite(requestedIndex)) return;
-  restartTtsFrom(requestedIndex);
+document.querySelector("#ttsRateSlider").addEventListener("input", (event) => {
+  setTtsRate(Number(event.target.value));
 });
 
 if (state.tts.supported) {
