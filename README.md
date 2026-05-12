@@ -1,73 +1,28 @@
-# 沐浴 Chinese Reader 🛁
+# 沐浴读书
 
-A modern web reader for Chinese literature, built with the help of Codex.
+沐浴读书 is a calm mobile-first Chinese reading web app.
 
-沐浴 (Mùyù) means "to bathe" — immerse yourself in Chinese literature.
+## Features
 
-## Features (Planned)
-
-- 📚 **Book Library** — Browse and read Chinese novels
-- 🔍 **Full-Text Search** — Find quotes, characters, plot points instantly
-- 📖 **Reader Mode** — Clean, scrollable text with minimal UI
-- 🌙 **Dark Mode** — Easy on the eyes during late-night reading
-- 📱 **Responsive** — Works on desktop and mobile
-- 🇨🇳 **Chinese-First** — Optimized for CJK text rendering
+- Chinese/English UI toggle
+- Tap words or characters for pinyin and English definitions
+- Multi-character dictionary matching for words and idioms
+- Reading time tracking with a weekly rhythm chart
+- Saved display name and per-book progress in localStorage
+- Book source files organized under `book/`
 
 ## Project Structure
 
+- `app/` contains the static web app files.
+- `book/` contains source `.txt` book files.
+- `scripts/build-book-data.js` converts text files in `book/` into `app/book-data.js`.
+
+## Rebuild Book Data
+
+Run this after changing files in `book/`:
+
+```bash
+node scripts/build-book-data.js
 ```
-Muyu-Chinese-Reader/
-├── book/                      # Novel text files (plain text)
-│   └── 鬼吹灯_精绝古城.txt   # Sample: Ghost Blows Out the Lamp (Book 1)
-├── app/                        # Application source code (Codex workspace)
-│   ├── components/            # UI components
-│   ├── pages/                # Reader, library, search pages
-│   └── ...                   # Routes, utils, styles
-├── public/                    # Static assets
-└── README.md
-```
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm / pnpm / yarn
-
-### Development
-
-1. Clone the repo
-   ```bash
-   git clone https://github.com/Wierdojy/Muyu-Chinese-Reader.git
-   cd Muyu-Chinese-Reader
-   ```
-
-2. Install dependencies
-   ```bash
-   cd app
-   npm install
-   ```
-
-3. Run the dev server
-   ```bash
-   npm run dev
-   ```
-
-4. Open <http://localhost:3000> in your browser
-
-## Current Book
-
-The repo currently includes:
-
-**《鬼吹灯之精绝古城》** (Ghost Blows Out the Lamp: The Essence of the Ancient City)  
-by 天下霸唱 — A classic Chinese adventure novel about tomb-raiding, ancient mysteries, and the supernatural.
-
-More books coming soon! 📚
-
-## Contributing
-
-This project is under active development with Codex. Feel free to open issues or PRs.
-
----
-
-*沐浴 Chinese Reader — Dive into Chinese literature.* 🛁
+Then open `app/index.html` through any static web server.
