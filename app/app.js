@@ -230,11 +230,13 @@ function getWeekDates() {
   const monday = new Date(today);
   monday.setHours(0, 0, 0, 0);
   monday.setDate(today.getDate() - mondayOffset);
-  return Array.from({ length: 7 }, (_, index) => {
+  const dates = [];
+  for (let index = 0; index < 7; index += 1) {
     const date = new Date(monday);
     date.setDate(monday.getDate() + index);
-    return date;
-  });
+    dates.push(date);
+  }
+  return dates;
 }
 
 function getCurrentBook() {
@@ -496,14 +498,29 @@ function getReaderTermAt(index) {
 }
 
 function getActiveTargets(start, length) {
-  return Array.from({ length }, (_, offset) => getReaderTermAt(start + offset)).filter(Boolean);
+  const targets = [];
+  for (let offset = 0; offset < length; offset += 1) {
+    const target = getReaderTermAt(start + offset);
+    if (target) targets.push(target);
+  }
+  return targets;
+}
+
+function clearActiveReaderTerms() {
+  document.querySelectorAll(".reader-term.active").forEach((node) => {
+    node.classList.remove("active", "active-start", "active-end");
+  });
 }
 
 function showDefinition(anchor, term, activeTargets) {
   const [pinyin, meaning] = characterDictionary[term] || [t("unknownPinyin"), t("unknownMeaning")];
   const popover = document.querySelector("#definitionPopover");
-  document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
-  activeTargets.forEach((node) => node.classList.add("active"));
+  clearActiveReaderTerms();
+  activeTargets.forEach((node, index) => {
+    node.classList.add("active");
+    if (index === 0) node.classList.add("active-start");
+    if (index === activeTargets.length - 1) node.classList.add("active-end");
+  });
   document.querySelector("#definitionChar").textContent = term;
   document.querySelector("#definitionPinyin").textContent = formatPinyin(pinyin);
   document.querySelector("#definitionMeaning").textContent = meaning;
@@ -535,7 +552,7 @@ function showDictionaryForTarget(target) {
 
 function hideDefinition() {
   state.dictionarySelection = null;
-  document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
+  clearActiveReaderTerms();
   document.querySelector("#definitionPopover").hidden = true;
 }
 
