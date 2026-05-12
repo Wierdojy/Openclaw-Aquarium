@@ -403,20 +403,35 @@ h3 {
 
 .definition-popover {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
+  left: 12px;
+  top: 12px;
   z-index: 20;
-  width: min(342px, calc(100vw - 32px));
+  width: min(300px, calc(100vw - 24px));
   display: grid;
-  grid-template-columns: minmax(52px, max-content) 1fr;
+  grid-template-columns: minmax(44px, max-content) 1fr;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 12px 28px rgba(74, 101, 78, 0.1);
-  transform: translateX(-50%);
+  box-shadow: 0 12px 28px rgba(74, 101, 78, 0.18);
+}
+
+.definition-popover::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  background: var(--surface);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.definition-popover.below::after {
+  top: -7px;
+  bottom: auto;
 }
 
 .definition-popover[hidden] {
@@ -424,18 +439,18 @@ h3 {
 }
 
 .definition-char {
-  min-width: 52px;
-  min-height: 52px;
-  border-radius: 14px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
   background: var(--sage-soft);
   color: var(--sage-dark);
   display: grid;
   place-items: center;
   font-family: "Noto Serif SC", serif;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.25;
-  padding: 8px 10px;
+  padding: 7px 9px;
   white-space: nowrap;
 }
 
