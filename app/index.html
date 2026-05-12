@@ -10,22 +10,36 @@
       href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Serif+SC:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260512-2" />
   </head>
   <body>
+    <section class="auth-overlay" id="authOverlay" hidden>
+      <form class="auth-card" id="authForm">
+        <button class="language-button auth-language-button" type="button" id="authLanguageToggle" aria-label="Switch interface language">EN</button>
+        <p class="caption" id="authModeLabel">创建账户</p>
+        <h2 id="authTitle">沐浴读书</h2>
+        <label>
+          <span data-i18n="authUsername">用户名</span>
+          <input id="authNameInput" autocomplete="username" required maxlength="24" />
+        </label>
+        <label>
+          <span>PIN</span>
+          <input id="authPinInput" autocomplete="current-password" inputmode="numeric" required maxlength="12" type="password" />
+        </label>
+        <p class="auth-error" id="authError" hidden></p>
+        <button class="primary-button" type="submit" id="authSubmit">创建账户</button>
+        <button class="primary-button secondary-button" type="button" id="authModeToggle">已有账户？登录</button>
+      </form>
+    </section>
     <main class="shell">
       <section class="phone" aria-label="沐浴读书">
         <header class="topbar">
           <div>
-            <p class="brand-name">沐浴读书</p>
             <p class="caption" id="dateLabel">今日</p>
             <h1 id="greetingLabel">早安，袁孝正</h1>
           </div>
           <div class="icon-row">
             <button class="language-button" type="button" id="languageToggle" aria-label="Switch interface language">EN</button>
-            <button class="icon-button" type="button" aria-label="搜索" data-i18n-aria="search">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" /></svg>
-            </button>
             <button class="icon-button avatar" type="button" data-view-target="profile" aria-label="个人资料" data-i18n-aria="profile" id="avatarButton">袁</button>
           </div>
         </header>
@@ -38,11 +52,11 @@
 
         <section class="view active" id="homeView">
           <article class="continue-panel">
-            <div class="section-kicker reading-accent" data-i18n="continueReading">继续阅读</div>
+            <div class="section-kicker reading-accent" data-i18n="lastReading">上次读到：</div>
             <h2 id="currentTitle">鬼吹灯之精绝古城</h2>
             <p class="chapter-line" id="currentChapter">引子 · 0%</p>
             <div class="progress-path" aria-label="阅读进度 0%" id="currentProgressPath">
-              <span id="currentProgressFill"></span>
+              <span id="currentProgressFill" style="width: 0%"></span>
             </div>
             <p class="excerpt" id="currentExcerpt">盗墓不是游览观光，不是吟诗作对。</p>
             <button class="primary-button read-button" type="button" data-open-reader data-i18n="continueReading">继续阅读</button>
@@ -78,19 +92,83 @@
               <p id="libraryCount">3 本书</p>
             </div>
           </div>
+          <label class="library-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" /></svg>
+            <span class="sr-only" data-i18n="librarySearchLabel">搜索书架</span>
+            <input id="librarySearchInput" type="search" data-i18n-placeholder="librarySearchPlaceholder" placeholder="搜索书名、作者或章节" />
+          </label>
           <div class="library-list" id="libraryList"></div>
         </section>
 
         <section class="view reader-view" id="readerView">
           <div class="reader-top">
             <button class="icon-button" type="button" data-view-target="home" aria-label="返回" data-i18n-aria="back">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6" /></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></svg>
             </button>
             <div>
               <p class="caption" id="readerBook">鬼吹灯之精绝古城</p>
               <h3 id="readerChapter">引子</h3>
             </div>
+            <button class="icon-button toc-button" type="button" id="tocToggle" aria-label="目录" data-i18n-aria="toc" aria-expanded="false" aria-controls="tocPanel">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12" /><path d="M8 12h12" /><path d="M8 18h12" /><path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" /></svg>
+            </button>
           </div>
+          <section class="toc-panel" id="tocPanel" aria-label="目录" hidden>
+            <div class="toc-card">
+              <div class="section-heading">
+                <div>
+                  <p class="caption" data-i18n="tocCaption">章节</p>
+                  <h3 data-i18n="tocTitle">目录</h3>
+                </div>
+                <button class="icon-button" type="button" id="tocClose" aria-label="关闭目录" data-i18n-aria="tocClose">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
+              </div>
+              <div class="toc-list" id="tocList"></div>
+            </div>
+          </section>
+          <div class="reader-controls reader-controls-top">
+            <button class="icon-button" type="button" data-chapter-action="prev" aria-label="上一章">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            <div class="chapter-progress" data-chapter-progress>1 / 3</div>
+            <button class="icon-button" type="button" data-chapter-action="next" aria-label="下一章">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          </div>
+          <section class="tts-panel" id="ttsPanel" aria-label="朗读控制">
+            <div class="tts-heading">
+              <div>
+                <p class="caption" data-i18n="ttsTitle">朗读</p>
+                <strong id="ttsStatus" data-i18n="ttsReady">准备播放</strong>
+              </div>
+              <span class="tts-rate" id="ttsRateLabel">1.0x</span>
+            </div>
+            <div class="tts-controls">
+              <button class="icon-button" type="button" id="ttsBack" aria-label="后退 100 字" data-i18n-aria="ttsBack">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 19 4 12l7-7" /><path d="M20 19 13 12l7-7" /></svg>
+              </button>
+              <button class="icon-button tts-play-button" type="button" id="ttsToggle" aria-label="开始朗读" data-i18n-aria="ttsPlay">
+                <svg class="tts-icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z" /></svg>
+                <svg class="tts-icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14" /><path d="M16 5v14" /></svg>
+              </button>
+              <button class="icon-button" type="button" id="ttsStop" aria-label="停止朗读" data-i18n-aria="ttsStop">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7z" /></svg>
+              </button>
+              <button class="icon-button" type="button" id="ttsForward" aria-label="前进 100 字" data-i18n-aria="ttsForward">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 5 7 7-7 7" /><path d="m4 5 7 7-7 7" /></svg>
+              </button>
+            </div>
+            <div class="tts-speed-row">
+              <label for="ttsRateSlider">
+                <span data-i18n="ttsRate">速度</span>
+                <input id="ttsRateSlider" type="range" min="0.6" max="1.8" step="0.1" value="1" />
+              </label>
+            </div>
+            <div class="tts-progress" aria-label="朗读进度">
+              <span id="ttsProgressFill"></span>
+            </div>
+          </section>
           <article class="reader-page">
             <p id="readerText"></p>
           </article>
@@ -100,22 +178,16 @@
               <p id="definitionPinyin">yue4</p>
               <strong id="definitionMeaning">moon</strong>
             </div>
+            <button class="icon-button definition-audio-button" type="button" id="definitionAudioJump" aria-label="从这里朗读">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M17 9.5a4 4 0 0 1 0 5" /><path d="M19.5 7a7 7 0 0 1 0 10" /></svg>
+            </button>
           </div>
           <div class="reader-controls">
-            <button class="icon-button" type="button" id="prevChapter" aria-label="上一章">
+            <button class="icon-button" type="button" id="prevChapter" data-chapter-action="prev" aria-label="上一章">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
             </button>
-            <button class="icon-button" type="button" id="playSpeech" aria-label="朗读" title="朗读">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5z" fill="currentColor" stroke="none" /></svg>
-            </button>
-            <button class="icon-button" type="button" id="pauseSpeech" aria-label="暂停" title="暂停" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" fill="currentColor" stroke="none" /></svg>
-            </button>
-            <button class="icon-button" type="button" id="stopSpeech" aria-label="停止" title="停止">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6V6z" fill="currentColor" stroke="none" /></svg>
-            </button>
-            <div class="chapter-progress" id="chapterProgress">1 / 3</div>
-            <button class="icon-button" type="button" id="nextChapter" aria-label="下一章">
+            <div class="chapter-progress" id="chapterProgress" data-chapter-progress>1 / 3</div>
+            <button class="icon-button" type="button" id="nextChapter" data-chapter-action="next" aria-label="下一章">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
             </button>
           </div>
@@ -136,12 +208,37 @@
               <input id="displayNameInput" required maxlength="24" value="袁孝正" />
             </label>
             <button class="primary-button" type="submit" data-i18n="saveName">保存名称</button>
+            <button class="primary-button secondary-button" type="button" id="logoutButton">切换账户</button>
           </form>
+
+          <section class="ambient-panel" aria-label="环境音乐" data-i18n-aria="ambientTitle">
+            <div class="ambient-heading">
+              <div>
+                <p class="caption" data-i18n="ambientCaption">阅读环境</p>
+                <h3 data-i18n="ambientTitle">环境音乐</h3>
+              </div>
+              <button class="icon-button ambient-mute-button" type="button" id="ambientMuteToggle" aria-label="静音" data-i18n-aria="ambientMute">
+                <svg class="ambient-icon-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M17 9.5a4 4 0 0 1 0 5" /><path d="M19.5 7a7 7 0 0 1 0 10" /></svg>
+                <svg class="ambient-icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="m16 9 5 5" /><path d="m21 9-5 5" /></svg>
+              </button>
+            </div>
+            <div class="ambient-options" id="ambientOptions" role="radiogroup" aria-label="环境音乐选择" data-i18n-aria="ambientChoice">
+              <button class="ambient-option" type="button" data-ambient="none" role="radio" aria-checked="true" data-i18n="ambientNone">无</button>
+              <button class="ambient-option" type="button" data-ambient="moon" role="radio" aria-checked="false" data-i18n="ambientMoon">月下</button>
+              <button class="ambient-option" type="button" data-ambient="teahouse" role="radio" aria-checked="false" data-i18n="ambientTeahouse">茶舍</button>
+              <button class="ambient-option" type="button" data-ambient="ferry" role="radio" aria-checked="false" data-i18n="ambientFerry">渡口</button>
+            </div>
+            <label class="ambient-volume" for="ambientVolumeSlider">
+              <span data-i18n="ambientVolume">音量</span>
+              <input id="ambientVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.35" />
+            </label>
+          </section>
         </section>
 
       </section>
     </main>
-    <script src="book-data.js"></script>
-    <script src="app.js"></script>
+    <script src="book-data.js?v=20260512-2"></script>
+    <script src="dictionary-data.js?v=20260512-2"></script>
+    <script src="app.js?v=20260512-2"></script>
   </body>
 </html>
