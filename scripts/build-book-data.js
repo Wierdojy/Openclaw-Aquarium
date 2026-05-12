@@ -6,12 +6,34 @@ const bookDir = path.join(root, "book");
 const outputPath = path.join(root, "book-data.js");
 
 const metadata = {
-  "鬼吹灯_精绝古城.txt": {
+  "鬼吹灯之精绝古城.txt": {
     title: "鬼吹灯之精绝古城",
+    author: "天下霸唱",
+    color: "blue"
+  },
+  "鬼吹灯之龙岭迷窟.txt": {
+    title: "鬼吹灯之龙岭迷窟",
+    author: "天下霸唱",
+    color: "blue"
+  },
+  "鬼吹灯之云南虫谷.txt": {
+    title: "鬼吹灯之云南虫谷",
+    author: "天下霸唱",
+    color: "blue"
+  },
+  "鬼吹灯之昆仑神宫.txt": {
+    title: "鬼吹灯之昆仑神宫",
     author: "天下霸唱",
     color: "blue"
   }
 };
+
+const bookOrder = [
+  "鬼吹灯之精绝古城.txt",
+  "鬼吹灯之龙岭迷窟.txt",
+  "鬼吹灯之云南虫谷.txt",
+  "鬼吹灯之昆仑神宫.txt"
+];
 
 const skipLines = new Set([
   "天涯书库",
@@ -143,7 +165,12 @@ function buildBook(fileName) {
 const books = fs
   .readdirSync(bookDir)
   .filter((fileName) => fileName.endsWith(".txt"))
-  .sort((a, b) => a.localeCompare(b, "zh-CN"))
+  .sort((a, b) => {
+    const aIndex = bookOrder.indexOf(a);
+    const bIndex = bookOrder.indexOf(b);
+    if (aIndex !== -1 || bIndex !== -1) return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+    return a.localeCompare(b, "zh-CN");
+  })
   .map(buildBook);
 
 fs.writeFileSync(
