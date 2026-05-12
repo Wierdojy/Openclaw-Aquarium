@@ -10,7 +10,8 @@ const state = {
   activeView: "home",
   readingTimer: null,
   currentBook: 0,
-  currentChapter: 0
+  currentChapter: 0,
+  dictionarySelection: null
 };
 
 const translations = {
@@ -95,6 +96,7 @@ const dictionaryTermsByFirstChar = Object.keys(characterDictionary).reduce((grou
 }, {});
 
 Object.values(dictionaryTermsByFirstChar).forEach((terms) => terms.sort((a, b) => b.length - a.length));
+const maxDictionaryTermLength = Math.min(12, Math.max(1, ...Object.keys(characterDictionary).map((term) => term.length)));
 
 function isChineseCharacter(char) {
   return /\p{Script=Han}/u.test(char);
@@ -347,25 +349,14 @@ function renderInteractiveText(text) {
   container.innerHTML = "";
   let index = 0;
   while (index < text.length) {
-    const remaining = text.slice(index);
-    const term = (dictionaryTermsByFirstChar[remaining[0]] || []).find((entry) => remaining.startsWith(entry));
-    if (term) {
-      const button = document.createElement("button");
-      button.className = "reader-term";
-      button.type = "button";
-      button.textContent = term;
-      button.dataset.term = term;
-      container.append(button);
-      index += term.length;
-      continue;
-    }
     const char = text[index];
     if (isChineseCharacter(char)) {
       const button = document.createElement("button");
       button.className = "reader-term";
       button.type = "button";
       button.textContent = char;
-      button.dataset.term = char;
+      button.dataset.char = char;
+      button.dataset.index = String(index);
       container.append(button);
     } else {
       container.append(document.createTextNode(char));
@@ -463,20 +454,65 @@ function formatPinyin(pinyin) {
     .join("");
 }
 
-function showDefinition(target) {
-  const term = target.dataset.term;
+function getDictionaryMatchAt(text, selectedIndex) {
+  let bestMatch = null;
+  const minStart = Math.max(0, selectedIndex - maxDictionaryTermLength + 1);
+  for (let start = selectedIndex; start >= minStart; start -= 1) {
+    const firstChar = text[start];
+    const terms = dictionaryTermsByFirstChar[firstChar] || [];
+    const remaining = text.slice(start);
+    const term = terms.find((entry) => selectedIndex < start + entry.length && remaining.startsWith(entry));
+    if (!term) continue;
+    if (!bestMatch || term.length > bestMatch.term.length || (term.length === bestMatch.term.length && start < bestMatch.start)) {
+      bestMatch = { term, start };
+    }
+  }
+  return bestMatch;
+}
+
+function getReaderTermAt(index) {
+  return document.querySelector(`#readerText .reader-term[data-index="${index}"]`);
+}
+
+function getActiveTargets(start, length) {
+  return Array.from({ length }, (_, offset) => getReaderTermAt(start + offset)).filter(Boolean);
+}
+
+function showDefinition(anchor, term, activeTargets) {
   const [pinyin, meaning] = characterDictionary[term] || [t("unknownPinyin"), t("unknownMeaning")];
   const popover = document.querySelector("#definitionPopover");
   document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
-  target.classList.add("active");
+  activeTargets.forEach((node) => node.classList.add("active"));
   document.querySelector("#definitionChar").textContent = term;
   document.querySelector("#definitionPinyin").textContent = formatPinyin(pinyin);
   document.querySelector("#definitionMeaning").textContent = meaning;
   popover.hidden = false;
-  positionDefinitionPopover(target, popover);
+  positionDefinitionPopover(anchor, popover);
+}
+
+function showDictionaryForTarget(target) {
+  const selectedIndex = Number(target.dataset.index);
+  const book = state.books[state.currentBook];
+  const chapter = book.chapters[state.currentChapter];
+  const match = getDictionaryMatchAt(chapter.text, selectedIndex);
+  const shouldShowCharacter =
+    match &&
+    match.term.length > 1 &&
+    state.dictionarySelection?.index === selectedIndex &&
+    state.dictionarySelection?.mode === "phrase";
+
+  if (shouldShowCharacter || !match) {
+    state.dictionarySelection = { index: selectedIndex, mode: "character", term: target.dataset.char };
+    showDefinition(target, target.dataset.char, [target]);
+    return;
+  }
+
+  state.dictionarySelection = { index: selectedIndex, mode: "phrase", term: match.term };
+  showDefinition(target, match.term, getActiveTargets(match.start, match.term.length));
 }
 
 function hideDefinition() {
+  state.dictionarySelection = null;
   document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
   document.querySelector("#definitionPopover").hidden = true;
 }
@@ -576,7 +612,7 @@ document.querySelector("#readerText").addEventListener("click", (event) => {
     hideDefinition();
     return;
   }
-  showDefinition(target);
+  showDictionaryForTarget(target);
 });
 
 document.querySelector("#definitionPopover").addEventListener("click", hideDefinition);
