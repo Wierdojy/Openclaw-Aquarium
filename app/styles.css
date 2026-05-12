@@ -476,6 +476,11 @@ h3 {
   border-top-right-radius: 8px;
 }
 
+.reader-term.speaking {
+  background: var(--blue-soft);
+  border-radius: 6px;
+}
+
 .definition-popover {
   position: fixed;
   left: 12px;
@@ -565,6 +570,116 @@ h3 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+.tts-panel {
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.tts-heading,
+.tts-controls,
+.tts-jump-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tts-panel .icon-button {
+  background: var(--surface-low);
+}
+
+.tts-play-button {
+  background: var(--sage-soft);
+}
+
+.tts-play-button .tts-icon-pause {
+  display: none;
+}
+
+.tts-play-button.is-playing .tts-icon-play {
+  display: none;
+}
+
+.tts-play-button.is-playing .tts-icon-pause {
+  display: block;
+}
+
+.tts-heading strong {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
+.tts-rate {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--ink);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tts-controls {
+  justify-content: center;
+}
+
+.mini-button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tts-jump-row label {
+  display: grid;
+  grid-template-columns: max-content 64px;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tts-jump-row input {
+  width: 64px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--ink);
+  padding: 8px 10px;
+  outline: 2px solid transparent;
+}
+
+.tts-jump-row input:focus {
+  outline-color: var(--sage-soft);
+}
+
+.tts-progress {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #dbdad5;
+}
+
+.tts-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sage);
 }
 
 .profile-view {
