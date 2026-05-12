@@ -39,6 +39,7 @@ const state = {
     context: null,
     masterGain: null,
     nodes: [],
+    timers: [],
     isPlaying: false
   }
 };
@@ -116,9 +117,9 @@ const translations = {
     ambientTitle: "环境音乐",
     ambientChoice: "环境音乐选择",
     ambientNone: "无",
-    ambientRain: "细雨",
-    ambientForest: "林风",
-    ambientLantern: "灯下",
+    ambientMoon: "月下",
+    ambientTeahouse: "茶舍",
+    ambientFerry: "渡口",
     ambientVolume: "音量",
     ambientMute: "静音",
     ambientUnmute: "取消静音",
@@ -194,9 +195,9 @@ const translations = {
     ambientTitle: "Ambient music",
     ambientChoice: "Ambient music selection",
     ambientNone: "None",
-    ambientRain: "Rain",
-    ambientForest: "Forest",
-    ambientLantern: "Lantern",
+    ambientMoon: "Moonlight",
+    ambientTeahouse: "Teahouse",
+    ambientFerry: "Ferry",
     ambientVolume: "Volume",
     ambientMute: "Mute",
     ambientUnmute: "Unmute",
@@ -340,7 +341,8 @@ function saveTtsRate() {
 
 function loadAmbientSelection() {
   const saved = localStorage.getItem(storageKey("ambient-selection"));
-  return ["none", "rain", "forest", "lantern"].includes(saved) ? saved : "none";
+  const migrated = { rain: "moon", forest: "teahouse", lantern: "ferry" }[saved] || saved;
+  return ["none", "moon", "teahouse", "ferry"].includes(migrated) ? migrated : "none";
 }
 
 function loadAmbientMuted() {
@@ -1121,7 +1123,7 @@ function createNoiseBuffer(context, duration = 2) {
   return buffer;
 }
 
-function addLoopedNoise(context, filterType, frequency, gainValue) {
+function addLoopedNoise(context, destination, filterType, frequency, gainValue, qValue = 0.0001) {
   const source = context.createBufferSource();
   const filter = context.createBiquadFilter();
   const gain = context.createGain();
@@ -1129,28 +1131,97 @@ function addLoopedNoise(context, filterType, frequency, gainValue) {
   source.loop = true;
   filter.type = filterType;
   filter.frequency.value = frequency;
+  filter.Q.value = qValue;
   gain.gain.value = gainValue;
   source.connect(filter);
   filter.connect(gain);
-  gain.connect(state.ambient.masterGain);
+  gain.connect(destination);
   source.start();
   state.ambient.nodes.push(source, filter, gain);
 }
 
-function addSoftTone(context, frequency, gainValue, detune = 0) {
+function addSoftTone(context, destination, frequency, gainValue, detune = 0, type = "sine") {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
-  oscillator.type = "sine";
+  oscillator.type = type;
   oscillator.frequency.value = frequency;
   oscillator.detune.value = detune;
   gain.gain.value = gainValue;
   oscillator.connect(gain);
-  gain.connect(state.ambient.masterGain);
+  gain.connect(destination);
   oscillator.start();
   state.ambient.nodes.push(oscillator, gain);
 }
 
+function registerAmbientTimer(timerId) {
+  state.ambient.timers.push(timerId);
+}
+
+function clearAmbientTimers() {
+  state.ambient.timers.forEach((timerId) => window.clearInterval(timerId));
+  state.ambient.timers = [];
+}
+
+function createAmbientDelay(context, destination, delayTime, feedbackGain, wetGain) {
+  const input = context.createGain();
+  const output = context.createGain();
+  const delay = context.createDelay(1.2);
+  const feedback = context.createGain();
+  const wet = context.createGain();
+  delay.delayTime.value = delayTime;
+  feedback.gain.value = feedbackGain;
+  wet.gain.value = wetGain;
+  input.connect(output);
+  input.connect(delay);
+  delay.connect(feedback);
+  feedback.connect(delay);
+  delay.connect(wet);
+  wet.connect(output);
+  output.connect(destination);
+  state.ambient.nodes.push(input, output, delay, feedback, wet);
+  return input;
+}
+
+function scheduleAmbientNote(context, destination, {
+  start,
+  frequency,
+  duration = 1.6,
+  gain = 0.05,
+  attack = 0.04,
+  release = 0.7,
+  detune = 0,
+  type = "sine",
+  filterFrequency = 1800,
+  q = 0.7
+}) {
+  const oscillator = context.createOscillator();
+  const filter = context.createBiquadFilter();
+  const noteGain = context.createGain();
+  oscillator.type = type;
+  oscillator.frequency.value = frequency;
+  oscillator.detune.value = detune;
+  filter.type = "lowpass";
+  filter.frequency.value = filterFrequency;
+  filter.Q.value = q;
+  noteGain.gain.setValueAtTime(0.0001, start);
+  noteGain.gain.linearRampToValueAtTime(gain, start + attack);
+  noteGain.gain.exponentialRampToValueAtTime(0.0001, start + duration + release);
+  oscillator.connect(filter);
+  filter.connect(noteGain);
+  noteGain.connect(destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + release + 0.05);
+  state.ambient.nodes.push(oscillator, filter, noteGain);
+}
+
+function startAmbientLoop(context, cycleSeconds, callback) {
+  const scheduleCycle = () => callback(context.currentTime + 0.06);
+  scheduleCycle();
+  registerAmbientTimer(window.setInterval(scheduleCycle, cycleSeconds * 1000));
+}
+
 function stopAmbient() {
+  clearAmbientTimers();
   state.ambient.nodes.forEach((node) => {
     if (typeof node.stop === "function") {
       try {
@@ -1181,17 +1252,80 @@ function startAmbient() {
   if (!context) return;
   if (context.state === "suspended") context.resume();
   stopAmbient();
-  if (state.ambient.selection === "rain") {
-    addLoopedNoise(context, "lowpass", 1800, 0.55);
-    addLoopedNoise(context, "highpass", 2400, 0.12);
-  } else if (state.ambient.selection === "forest") {
-    addLoopedNoise(context, "bandpass", 520, 0.28);
-    addLoopedNoise(context, "lowpass", 850, 0.18);
-    addSoftTone(context, 196, 0.015, -5);
-  } else if (state.ambient.selection === "lantern") {
-    addSoftTone(context, 146.83, 0.05, -4);
-    addSoftTone(context, 220, 0.035, 3);
-    addLoopedNoise(context, "lowpass", 420, 0.08);
+  const padBus = createAmbientDelay(context, state.ambient.masterGain, 0.34, 0.42, 0.32);
+  const bellBus = createAmbientDelay(context, state.ambient.masterGain, 0.52, 0.48, 0.4);
+  if (state.ambient.selection === "moon") {
+    addSoftTone(context, padBus, 196, 0.018, -3, "sine");
+    addSoftTone(context, padBus, 293.66, 0.014, 4, "triangle");
+    startAmbientLoop(context, 8, (start) => {
+      [
+        { at: 0.0, frequency: 392, duration: 1.5, gain: 0.026 },
+        { at: 1.8, frequency: 440, duration: 1.2, gain: 0.022 },
+        { at: 3.3, frequency: 587.33, duration: 1.4, gain: 0.024 },
+        { at: 5.2, frequency: 659.25, duration: 1.1, gain: 0.018 },
+        { at: 6.4, frequency: 440, duration: 1.6, gain: 0.02 }
+      ].forEach((note) => {
+        scheduleAmbientNote(context, bellBus, {
+          start: start + note.at,
+          frequency: note.frequency,
+          duration: note.duration,
+          gain: note.gain,
+          attack: 0.03,
+          release: 1.2,
+          type: "triangle",
+          filterFrequency: 1500
+        });
+      });
+    });
+  } else if (state.ambient.selection === "teahouse") {
+    addSoftTone(context, padBus, 174.61, 0.016, -5, "triangle");
+    addSoftTone(context, padBus, 261.63, 0.014, 2, "sine");
+    startAmbientLoop(context, 8, (start) => {
+      [
+        { at: 0.0, frequency: 349.23, duration: 0.9, gain: 0.026 },
+        { at: 0.9, frequency: 392, duration: 0.8, gain: 0.022 },
+        { at: 1.8, frequency: 523.25, duration: 0.9, gain: 0.024 },
+        { at: 3.1, frequency: 392, duration: 1.0, gain: 0.022 },
+        { at: 4.6, frequency: 329.63, duration: 0.85, gain: 0.022 },
+        { at: 5.6, frequency: 440, duration: 0.95, gain: 0.025 },
+        { at: 6.7, frequency: 523.25, duration: 1.2, gain: 0.02 }
+      ].forEach((note) => {
+        scheduleAmbientNote(context, bellBus, {
+          start: start + note.at,
+          frequency: note.frequency,
+          duration: note.duration,
+          gain: note.gain,
+          attack: 0.018,
+          release: 0.9,
+          type: "sine",
+          filterFrequency: 1700
+        });
+      });
+    });
+  } else if (state.ambient.selection === "ferry") {
+    addSoftTone(context, padBus, 146.83, 0.018, -2, "sine");
+    addSoftTone(context, padBus, 220, 0.013, 3, "triangle");
+    addLoopedNoise(context, padBus, "lowpass", 240, 0.012);
+    startAmbientLoop(context, 10, (start) => {
+      [
+        { at: 0.0, frequency: 293.66, duration: 1.5, gain: 0.024 },
+        { at: 2.0, frequency: 329.63, duration: 1.3, gain: 0.02 },
+        { at: 4.2, frequency: 392, duration: 1.1, gain: 0.021 },
+        { at: 6.4, frequency: 440, duration: 1.4, gain: 0.018 },
+        { at: 8.1, frequency: 329.63, duration: 1.8, gain: 0.017 }
+      ].forEach((note) => {
+        scheduleAmbientNote(context, bellBus, {
+          start: start + note.at,
+          frequency: note.frequency,
+          duration: note.duration,
+          gain: note.gain,
+          attack: 0.03,
+          release: 1.4,
+          type: "triangle",
+          filterFrequency: 1300
+        });
+      });
+    });
   }
   state.ambient.isPlaying = true;
   updateAmbientGain();
