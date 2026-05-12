@@ -89,7 +89,7 @@ const customDictionary = {
   一声回响: ["yi1 sheng1 hui2 xiang3", "an echo"]
 };
 
-const characterDictionary = { ...(window.MUYU_DICTIONARY || {}), ...customDictionary };
+const characterDictionary = Object.assign({}, window.MUYU_DICTIONARY || {}, customDictionary);
 const dictionaryTermsByFirstChar = Object.keys(characterDictionary).reduce((groups, term) => {
   const firstChar = term[0];
   if (!groups[firstChar]) groups[firstChar] = [];
@@ -97,17 +97,29 @@ const dictionaryTermsByFirstChar = Object.keys(characterDictionary).reduce((grou
   return groups;
 }, {});
 
-Object.values(dictionaryTermsByFirstChar).forEach((terms) => terms.sort((a, b) => b.length - a.length));
-const maxDictionaryTermLength = Math.min(12, Math.max(1, ...Object.keys(characterDictionary).map((term) => term.length)));
+Object.keys(dictionaryTermsByFirstChar).forEach((firstChar) => {
+  dictionaryTermsByFirstChar[firstChar].sort((a, b) => b.length - a.length);
+});
+const maxDictionaryTermLength = Math.min(
+  12,
+  Object.keys(characterDictionary).reduce((longest, term) => Math.max(longest, term.length), 1)
+);
 
 function isChineseCharacter(char) {
-  return /\p{Script=Han}/u.test(char);
+  if (!char) return false;
+  const code = char.codePointAt(0);
+  return (
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0x20000 && code <= 0x2ebef)
+  );
 }
 
 function loadBooks() {
   const bundledBooks = Array.isArray(window.MUYU_BOOKS) ? window.MUYU_BOOKS : [];
   const saved = localStorage.getItem("muyu-books");
-  if (!saved) return applySavedBookProgress([...bundledBooks, ...starterBooks]);
+  if (!saved) return applySavedBookProgress(bundledBooks.concat(starterBooks));
   try {
     const savedBooks = JSON.parse(saved);
     const bundledTitles = new Set(bundledBooks.map((book) => book.title));
@@ -117,14 +129,14 @@ function loadBooks() {
     }
     const savedTitles = new Set(savedUserBooks.map((book) => book.title));
     const newBundledBooks = bundledBooks.filter((book) => !savedTitles.has(book.title));
-    return applySavedBookProgress([...newBundledBooks, ...savedUserBooks]);
-  } catch {
-    return applySavedBookProgress([...bundledBooks, ...starterBooks]);
+    return applySavedBookProgress(newBundledBooks.concat(savedUserBooks));
+  } catch (error) {
+    return applySavedBookProgress(bundledBooks.concat(starterBooks));
   }
 }
 
 function saveBooks() {
-  const bundledTitles = new Set([...(window.MUYU_BOOKS || []), ...starterBooks].map((book) => book.title));
+  const bundledTitles = new Set((window.MUYU_BOOKS || []).concat(starterBooks).map((book) => book.title));
   const userBooks = state.books.filter((book) => !bundledTitles.has(book.title) && !removedSampleTitles.has(book.title));
   localStorage.setItem("muyu-books", JSON.stringify(userBooks));
 }
@@ -150,12 +162,14 @@ function loadReadingStats() {
   if (!saved) return {};
   try {
     const parsed = JSON.parse(saved);
-    if (Object.values(parsed).some((value) => typeof value === "number")) {
-      const firstBookTitle = (window.MUYU_BOOKS || [])[0]?.title || "book";
+    const parsedValues = Object.keys(parsed).map((key) => parsed[key]);
+    if (parsedValues.some((value) => typeof value === "number")) {
+      const sourceBooks = window.MUYU_BOOKS || [];
+      const firstBookTitle = sourceBooks.length ? sourceBooks[0].title : "book";
       return { [firstBookTitle]: parsed };
     }
     return parsed;
-  } catch {
+  } catch (error) {
     return {};
   }
 }
@@ -169,7 +183,7 @@ function loadBookProgress() {
   if (!saved) return {};
   try {
     return JSON.parse(saved);
-  } catch {
+  } catch (error) {
     return {};
   }
 }
@@ -180,10 +194,12 @@ function saveBookProgress() {
 
 function applySavedBookProgress(books) {
   const progress = loadBookProgress();
-  return books.map((book) => ({
-    ...book,
-    progress: progress[book.title]?.progress ?? book.progress ?? 0
-  }));
+  return books.map((book) => {
+    const savedProgress = progress[book.title];
+    return Object.assign({}, book, {
+      progress: savedProgress && typeof savedProgress.progress === "number" ? savedProgress.progress : book.progress || 0
+    });
+  });
 }
 
 function t(key) {
@@ -192,8 +208,10 @@ function t(key) {
 
 function formatDateKey(date) {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const monthValue = String(date.getMonth() + 1);
+  const dayValue = String(date.getDate());
+  const month = monthValue.length === 1 ? `0${monthValue}` : monthValue;
+  const day = dayValue.length === 1 ? `0${dayValue}` : dayValue;
   return `${year}-${month}-${day}`;
 }
 
@@ -224,7 +242,8 @@ function getCurrentBook() {
 }
 
 function getCurrentBookTitle() {
-  return getCurrentBook()?.title || "book";
+  const book = getCurrentBook();
+  return book ? book.title : "book";
 }
 
 function getBookReadingStats(bookTitle = getCurrentBookTitle()) {
@@ -264,7 +283,7 @@ function renderReadingRhythm() {
   const secondsByDay = dates.map((date) => getDaySeconds(date, bookTitle));
   const totalSeconds = secondsByDay.reduce((sum, seconds) => sum + seconds, 0);
   const todayKey = formatDateKey(new Date());
-  const maxSeconds = Math.max(...secondsByDay, 60);
+  const maxSeconds = secondsByDay.reduce((largest, seconds) => Math.max(largest, seconds), 60);
   const weekLabels = t("weekDays");
   const chart = document.querySelector("#readingChart");
   const weekRow = document.querySelector("#weekRow");
@@ -444,7 +463,7 @@ function markPinyinSyllable(syllable) {
     markIndex = Math.max(base.search(/[aeiouüAEIOUÜ][^aeiouüAEIOUÜ]*$/), 0);
   }
   const vowel = base[markIndex];
-  const marked = toneMarks[vowel]?.[tone - 1];
+  const marked = toneMarks[vowel] ? toneMarks[vowel][tone - 1] : undefined;
   if (!marked) return base;
   return `${base.slice(0, markIndex)}${marked}${base.slice(markIndex + 1)}`;
 }
@@ -500,8 +519,9 @@ function showDictionaryForTarget(target) {
   const shouldShowCharacter =
     match &&
     match.term.length > 1 &&
-    state.dictionarySelection?.index === selectedIndex &&
-    state.dictionarySelection?.mode === "phrase";
+    state.dictionarySelection &&
+    state.dictionarySelection.index === selectedIndex &&
+    state.dictionarySelection.mode === "phrase";
 
   if (shouldShowCharacter || !match) {
     state.dictionarySelection = { index: selectedIndex, mode: "character", term: target.dataset.char };
@@ -571,7 +591,8 @@ function setView(viewName) {
 
 function openBook(index) {
   state.currentBook = index;
-  const savedChapter = state.bookProgress[state.books[index].title]?.chapter ?? 0;
+  const savedProgress = state.bookProgress[state.books[index].title];
+  const savedChapter = savedProgress && typeof savedProgress.chapter === "number" ? savedProgress.chapter : 0;
   state.currentChapter = Math.min(savedChapter, state.books[index].chapters.length - 1);
   renderReader();
   setView("reader");
