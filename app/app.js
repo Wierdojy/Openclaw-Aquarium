@@ -1,4 +1,5 @@
 const starterBooks = [];
+const removedSampleTitles = new Set(["山月记", "雪国", "瓦尔登湖", "局外人"]);
 
 const state = {
   books: loadBooks(),
@@ -258,7 +259,7 @@ function loadBooks() {
   try {
     const savedBooks = JSON.parse(saved);
     const bundledTitles = new Set(bundledBooks.map((book) => book.title));
-    const savedUserBooks = savedBooks.filter((book) => !bundledTitles.has(book.title));
+    const savedUserBooks = savedBooks.filter((book) => !bundledTitles.has(book.title) && !removedSampleTitles.has(book.title));
     if (savedUserBooks.length !== savedBooks.length) {
       localStorage.setItem("muyu-books", JSON.stringify(savedUserBooks));
     }
@@ -272,7 +273,7 @@ function loadBooks() {
 
 function saveBooks() {
   const bundledTitles = new Set([...(window.MUYU_BOOKS || []), ...starterBooks].map((book) => book.title));
-  const userBooks = state.books.filter((book) => !bundledTitles.has(book.title));
+  const userBooks = state.books.filter((book) => !bundledTitles.has(book.title) && !removedSampleTitles.has(book.title));
   localStorage.setItem("muyu-books", JSON.stringify(userBooks));
 }
 
