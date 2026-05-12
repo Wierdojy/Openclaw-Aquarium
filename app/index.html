@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Serif+SC:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260511-16" />
+    <link rel="stylesheet" href="styles.css?v=20260512-1" />
   </head>
   <body>
     <section class="auth-overlay" id="authOverlay" hidden>
@@ -40,9 +40,6 @@
           </div>
           <div class="icon-row">
             <button class="language-button" type="button" id="languageToggle" aria-label="Switch interface language">EN</button>
-            <button class="icon-button" type="button" aria-label="搜索" data-i18n-aria="search">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" /></svg>
-            </button>
             <button class="icon-button avatar" type="button" data-view-target="profile" aria-label="个人资料" data-i18n-aria="profile" id="avatarButton">袁</button>
           </div>
         </header>
@@ -95,6 +92,11 @@
               <p id="libraryCount">3 本书</p>
             </div>
           </div>
+          <label class="library-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" /></svg>
+            <span class="sr-only" data-i18n="librarySearchLabel">搜索书架</span>
+            <input id="librarySearchInput" type="search" data-i18n-placeholder="librarySearchPlaceholder" placeholder="搜索书名、作者或章节" />
+          </label>
           <div class="library-list" id="libraryList"></div>
         </section>
 
@@ -208,12 +210,35 @@
             <button class="primary-button" type="submit" data-i18n="saveName">保存名称</button>
             <button class="primary-button secondary-button" type="button" id="logoutButton">切换账户</button>
           </form>
+
+          <section class="ambient-panel" aria-label="环境音乐" data-i18n-aria="ambientTitle">
+            <div class="ambient-heading">
+              <div>
+                <p class="caption" data-i18n="ambientCaption">阅读环境</p>
+                <h3 data-i18n="ambientTitle">环境音乐</h3>
+              </div>
+              <button class="icon-button ambient-mute-button" type="button" id="ambientMuteToggle" aria-label="静音" data-i18n-aria="ambientMute">
+                <svg class="ambient-icon-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M17 9.5a4 4 0 0 1 0 5" /><path d="M19.5 7a7 7 0 0 1 0 10" /></svg>
+                <svg class="ambient-icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="m16 9 5 5" /><path d="m21 9-5 5" /></svg>
+              </button>
+            </div>
+            <div class="ambient-options" id="ambientOptions" role="radiogroup" aria-label="环境音乐选择" data-i18n-aria="ambientChoice">
+              <button class="ambient-option" type="button" data-ambient="none" role="radio" aria-checked="true" data-i18n="ambientNone">无</button>
+              <button class="ambient-option" type="button" data-ambient="rain" role="radio" aria-checked="false" data-i18n="ambientRain">细雨</button>
+              <button class="ambient-option" type="button" data-ambient="forest" role="radio" aria-checked="false" data-i18n="ambientForest">林风</button>
+              <button class="ambient-option" type="button" data-ambient="lantern" role="radio" aria-checked="false" data-i18n="ambientLantern">灯下</button>
+            </div>
+            <label class="ambient-volume" for="ambientVolumeSlider">
+              <span data-i18n="ambientVolume">音量</span>
+              <input id="ambientVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.35" />
+            </label>
+          </section>
         </section>
 
       </section>
     </main>
-    <script src="book-data.js?v=20260511-16"></script>
-    <script src="dictionary-data.js?v=20260511-16"></script>
-    <script src="app.js?v=20260511-16"></script>
+    <script src="book-data.js?v=20260512-1"></script>
+    <script src="dictionary-data.js?v=20260512-1"></script>
+    <script src="app.js?v=20260512-1"></script>
   </body>
 </html>
