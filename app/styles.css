@@ -79,7 +79,7 @@ button {
 
 .brand-name {
   margin: 0 0 6px;
-  color: var(--terra-dark);
+  color: var(--sage-dark);
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
@@ -190,7 +190,7 @@ h3 {
 }
 
 .section-kicker {
-  color: var(--terra-dark);
+  color: var(--sage-dark);
   margin-bottom: 10px;
 }
 
@@ -206,7 +206,7 @@ h3 {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--terra);
+  background: var(--sage);
 }
 
 .excerpt {
@@ -260,14 +260,6 @@ h3 {
   background: var(--sage-soft);
 }
 
-.road-chart span:nth-child(2n) {
-  background: #ffdbcd;
-}
-
-.road-chart span:nth-child(3n) {
-  background: #c9e8f2;
-}
-
 .road-chart .today {
   background: var(--blue);
 }
@@ -317,7 +309,7 @@ h3 {
 .cover {
   height: 92px;
   border-radius: 13px;
-  background: var(--terra);
+  background: var(--sage);
 }
 
 .cover.terra {
@@ -405,8 +397,8 @@ h3 {
 }
 
 .reader-term.active {
-  background: #ffdbcd;
-  color: var(--terra-dark);
+  background: #c9e8f2;
+  color: var(--blue-dark);
 }
 
 .definition-popover {
@@ -450,8 +442,8 @@ h3 {
   min-width: 44px;
   min-height: 44px;
   border-radius: 12px;
-  background: #ffdbcd;
-  color: var(--terra-dark);
+  background: #c9e8f2;
+  color: var(--blue-dark);
   display: grid;
   place-items: center;
   font-family: "Noto Serif SC", serif;
