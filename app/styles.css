@@ -229,7 +229,7 @@ h3 {
   line-height: 32px;
   letter-spacing: 0.02em;
   color: var(--muted);
-  margin: 0 0 18px;
+  margin: 22px 0 22px;
 }
 
 .primary-button {
