@@ -28,7 +28,12 @@ const state = {
     isPaused: false,
     requestedStop: false,
     playbackId: 0,
-    highlightTimers: [],
+    trackerFrame: 0,
+    trackerTimeline: [],
+    trackerNextStep: 0,
+    trackerElapsedMs: 0,
+    trackerStartedAt: 0,
+    trackerBiasMs: 0,
     lastBoundaryIndex: null,
     lastBoundaryTime: null,
     estimatedMsPerChar: 150,
@@ -900,9 +905,27 @@ function clearTtsHighlight() {
   });
 }
 
-function clearTtsHighlightTimers() {
-  state.tts.highlightTimers.forEach((timerId) => window.clearTimeout(timerId));
-  state.tts.highlightTimers = [];
+function stopTtsTracker() {
+  if (state.tts.trackerFrame) {
+    window.cancelAnimationFrame(state.tts.trackerFrame);
+  }
+  state.tts.trackerFrame = 0;
+  state.tts.trackerTimeline = [];
+  state.tts.trackerNextStep = 0;
+  state.tts.trackerElapsedMs = 0;
+  state.tts.trackerStartedAt = 0;
+  state.tts.trackerBiasMs = 0;
+}
+
+function pauseTtsTracker() {
+  if (state.tts.trackerStartedAt) {
+    state.tts.trackerElapsedMs += performance.now() - state.tts.trackerStartedAt;
+    state.tts.trackerStartedAt = 0;
+  }
+  if (state.tts.trackerFrame) {
+    window.cancelAnimationFrame(state.tts.trackerFrame);
+    state.tts.trackerFrame = 0;
+  }
 }
 
 function getTtsHighlightTarget(index) {
@@ -911,23 +934,111 @@ function getTtsHighlightTarget(index) {
   return target || null;
 }
 
-function queueIntraWordHighlight(playbackId, startIndex) {
-  const queuedIndices = [];
-  const maxSyntheticSpan = 4;
-  for (let index = startIndex + 1; index < state.currentReaderText.length && queuedIndices.length < maxSyntheticSpan - 1; index += 1) {
-    if (!isChineseCharacter(state.currentReaderText[index])) break;
-    queuedIndices.push(index);
+function getTtsTrackerElapsedMs() {
+  return state.tts.trackerElapsedMs + (state.tts.trackerStartedAt ? performance.now() - state.tts.trackerStartedAt : 0);
+}
+
+function getTtsBaseStepMs() {
+  const nominalMs = 190 / Math.max(0.6, state.tts.rate || 1);
+  const learnedMs = Number.isFinite(state.tts.estimatedMsPerChar) ? state.tts.estimatedMsPerChar : nominalMs;
+  return Math.max(60, Math.min(260, nominalMs * 0.7 + learnedMs * 0.3));
+}
+
+function getTtsTimingWeight(char) {
+  if (!char) return 1;
+  if (/\s/.test(char)) return 0.18;
+  if (/[。！？!?…]/.test(char)) return 1.65;
+  if (/[，、；：,:;]/.test(char)) return 0.95;
+  if (/[“”"'‘’（）()《》〈〉【】\[\]—-]/.test(char)) return 0.3;
+  if (/[0-9A-Za-z]/.test(char)) return 0.92;
+  return 1;
+}
+
+function buildTtsTimeline(text, absoluteStartIndex) {
+  const timeline = [];
+  const baseStepMs = getTtsBaseStepMs();
+  let elapsedMs = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const absoluteIndex = absoluteStartIndex + index;
+    if (isChineseCharacter(char)) {
+      timeline.push({ absoluteIndex, atMs: elapsedMs });
+    }
+    elapsedMs += baseStepMs * getTtsTimingWeight(char);
   }
-  if (!queuedIndices.length) return;
-  const stepDelay = Math.max(70, Math.min(260, state.tts.estimatedMsPerChar));
-  queuedIndices.forEach((nextIndex, offset) => {
-    const timerId = window.setTimeout(() => {
-      if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
-      if (state.tts.charIndex >= nextIndex) return;
-      setTtsCharacterIndex(nextIndex, false);
-    }, stepDelay * (offset + 1));
-    state.tts.highlightTimers.push(timerId);
-  });
+  return timeline;
+}
+
+function findTtsNextTimelineStep(absoluteIndex) {
+  const nextStep = state.tts.trackerTimeline.findIndex((step) => step.absoluteIndex > absoluteIndex);
+  return nextStep >= 0 ? nextStep : state.tts.trackerTimeline.length;
+}
+
+function findTtsTimelineStepIndex(absoluteIndex) {
+  return state.tts.trackerTimeline.findIndex((step) => step.absoluteIndex === absoluteIndex);
+}
+
+function pumpTtsTracker(playbackId) {
+  state.tts.trackerFrame = 0;
+  if (playbackId !== state.tts.playbackId || state.tts.requestedStop || !state.tts.isPlaying || state.tts.isPaused) return;
+  const elapsedMs = getTtsTrackerElapsedMs();
+  while (state.tts.trackerNextStep < state.tts.trackerTimeline.length) {
+    const step = state.tts.trackerTimeline[state.tts.trackerNextStep];
+    if (elapsedMs < step.atMs + state.tts.trackerBiasMs) break;
+    if (step.absoluteIndex > state.tts.charIndex) {
+      setTtsCharacterIndex(step.absoluteIndex, false);
+    }
+    state.tts.trackerNextStep += 1;
+  }
+  if (state.tts.trackerNextStep < state.tts.trackerTimeline.length) {
+    state.tts.trackerFrame = window.requestAnimationFrame(() => pumpTtsTracker(playbackId));
+  }
+}
+
+function startTtsTracker(playbackId, chunk, chunkOffset) {
+  stopTtsTracker();
+  const spokenStartIndex = chunk.start + chunkOffset;
+  const spokenText = chunk.text.slice(chunkOffset);
+  state.tts.trackerTimeline = buildTtsTimeline(spokenText, spokenStartIndex);
+  state.tts.trackerNextStep = findTtsNextTimelineStep(state.tts.charIndex);
+  state.tts.trackerElapsedMs = 0;
+  state.tts.trackerStartedAt = performance.now();
+  state.tts.trackerBiasMs = 0;
+  if (!state.tts.trackerTimeline.length) return;
+  state.tts.trackerFrame = window.requestAnimationFrame(() => pumpTtsTracker(playbackId));
+}
+
+function resumeTtsTracker(playbackId) {
+  if (playbackId !== state.tts.playbackId || !state.tts.isPlaying || state.tts.isPaused || !state.tts.trackerTimeline.length) return;
+  if (!state.tts.trackerStartedAt) {
+    state.tts.trackerStartedAt = performance.now();
+  }
+  if (!state.tts.trackerFrame) {
+    state.tts.trackerFrame = window.requestAnimationFrame(() => pumpTtsTracker(playbackId));
+  }
+}
+
+function syncTtsTracker(playbackId, absoluteIndex, elapsedTimeMs = null) {
+  if (playbackId !== state.tts.playbackId) return;
+  if (Number.isFinite(elapsedTimeMs)) {
+    state.tts.trackerElapsedMs = Math.max(0, elapsedTimeMs);
+    if (state.tts.trackerStartedAt) {
+      state.tts.trackerStartedAt = performance.now();
+    }
+  }
+  if (isChineseCharacter(state.currentReaderText[absoluteIndex])) {
+    setTtsCharacterIndex(absoluteIndex, false);
+  }
+  const timelineStepIndex = findTtsTimelineStepIndex(absoluteIndex);
+  if (timelineStepIndex >= 0 && Number.isFinite(elapsedTimeMs)) {
+    state.tts.trackerBiasMs = Math.max(-180, Math.min(900, elapsedTimeMs - state.tts.trackerTimeline[timelineStepIndex].atMs));
+  }
+  if (state.tts.trackerTimeline.length) {
+    state.tts.trackerNextStep = findTtsNextTimelineStep(absoluteIndex);
+  }
+  if (!state.tts.trackerFrame && !state.tts.isPaused && state.tts.isPlaying && state.tts.trackerTimeline.length) {
+    state.tts.trackerFrame = window.requestAnimationFrame(() => pumpTtsTracker(playbackId));
+  }
 }
 
 function highlightTtsCharacter(index) {
@@ -974,7 +1085,7 @@ function speakNextTtsChunk() {
     state.tts.isPlaying = false;
     state.tts.isPaused = false;
     state.tts.chunkIndex = 0;
-    clearTtsHighlightTimers();
+    stopTtsTracker();
     setTtsCharacterIndex(Math.max(0, state.currentReaderText.length - 1), false);
     setTtsStatus("ttsDone");
     return;
@@ -988,43 +1099,41 @@ function speakNextTtsChunk() {
   utterance.lang = voice ? voice.lang : "zh-CN";
   utterance.rate = state.tts.rate;
   utterance.pitch = 1;
+  state.tts.utterance = utterance;
+  utterance.onstart = () => {
+    if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
+    startTtsTracker(playbackId, chunk, chunkOffset);
+  };
   utterance.onboundary = (event) => {
     if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
     if (typeof event.charIndex !== "number") return;
     const absoluteIndex = chunk.start + chunkOffset + event.charIndex;
-    const previousIndex = state.tts.charIndex;
-    const hadBoundary = typeof state.tts.lastBoundaryIndex === "number";
+    const elapsedTimeMs = typeof event.elapsedTime === "number" && Number.isFinite(event.elapsedTime) ? Math.max(0, event.elapsedTime * 1000) : null;
+    const previousBoundaryIndex = typeof state.tts.lastBoundaryIndex === "number" ? state.tts.lastBoundaryIndex : null;
     if (typeof event.elapsedTime === "number" && Number.isFinite(event.elapsedTime)) {
-      if (hadBoundary && typeof state.tts.lastBoundaryTime === "number" && absoluteIndex > state.tts.lastBoundaryIndex) {
+      if (previousBoundaryIndex !== null && typeof state.tts.lastBoundaryTime === "number" && absoluteIndex > previousBoundaryIndex) {
         const deltaTimeMs = Math.max(40, (event.elapsedTime - state.tts.lastBoundaryTime) * 1000);
-        const deltaChars = Math.max(1, absoluteIndex - state.tts.lastBoundaryIndex);
+        const deltaChars = Math.max(1, absoluteIndex - previousBoundaryIndex);
         state.tts.estimatedMsPerChar = Math.max(70, Math.min(260, deltaTimeMs / deltaChars));
       }
       state.tts.lastBoundaryTime = event.elapsedTime;
     }
-    if (absoluteIndex < previousIndex) {
-      state.tts.lastBoundaryIndex = hadBoundary ? Math.max(state.tts.lastBoundaryIndex, absoluteIndex) : absoluteIndex;
-      return;
+    if (previousBoundaryIndex === null || absoluteIndex > previousBoundaryIndex) {
+      state.tts.lastBoundaryIndex = absoluteIndex;
     }
-    const shouldQueueFromCurrent = !hadBoundary && absoluteIndex === previousIndex;
-    if (!shouldQueueFromCurrent && absoluteIndex <= previousIndex) {
-      state.tts.lastBoundaryIndex = hadBoundary ? Math.max(state.tts.lastBoundaryIndex, absoluteIndex) : absoluteIndex;
-      return;
-    }
-    state.tts.lastBoundaryIndex = absoluteIndex;
-    clearTtsHighlightTimers();
-    setTtsCharacterIndex(absoluteIndex, false);
-    queueIntraWordHighlight(playbackId, absoluteIndex);
+    syncTtsTracker(playbackId, absoluteIndex, elapsedTimeMs);
   };
   utterance.onend = () => {
     if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
-    clearTtsHighlightTimers();
-    setTtsCharacterIndex(chunk.end, false);
+    const lastSpokenStep = state.tts.trackerTimeline[state.tts.trackerTimeline.length - 1];
+    stopTtsTracker();
+    setTtsCharacterIndex(lastSpokenStep ? lastSpokenStep.absoluteIndex : chunk.end, false);
     state.tts.chunkIndex += 1;
     speakNextTtsChunk();
   };
   utterance.onerror = () => {
     if (playbackId !== state.tts.playbackId || state.tts.requestedStop) return;
+    stopTtsTracker();
     state.tts.isPlaying = false;
     state.tts.isPaused = false;
     setTtsStatus("ttsStopped");
@@ -1036,7 +1145,7 @@ function prepareTtsAt(startIndex, statusKey = "ttsIdle", shouldScroll = false) {
   const chunks = chunkTtsText(state.currentReaderText);
   state.tts.requestedStop = true;
   state.tts.playbackId += 1;
-  clearTtsHighlightTimers();
+  stopTtsTracker();
   window.speechSynthesis.cancel();
   state.tts.chunks = chunks;
   state.tts.chunkIndex = findTtsChunkIndexAt(chunks, startIndex);
@@ -1057,7 +1166,7 @@ function startTts(startIndex = state.tts.charIndex) {
   if (!chunks.length) return;
   state.tts.requestedStop = true;
   state.tts.playbackId += 1;
-  clearTtsHighlightTimers();
+  stopTtsTracker();
   window.speechSynthesis.cancel();
   state.tts.chunks = chunks;
   state.tts.charIndex = getTtsStartIndexForChunk(chunks, startIndex);
@@ -1076,6 +1185,7 @@ function toggleTts() {
   if (!state.tts.supported) return;
   if (state.tts.isPlaying && !state.tts.isPaused) {
     window.speechSynthesis.pause();
+    pauseTtsTracker();
     state.tts.isPaused = true;
     setTtsStatus("ttsPaused");
     return;
@@ -1088,6 +1198,7 @@ function toggleTts() {
       return;
     }
     state.tts.isPaused = false;
+    resumeTtsTracker(state.tts.playbackId);
     setTtsStatus("ttsPlaying");
     return;
   }
@@ -1098,7 +1209,7 @@ function stopTts(statusKey = "ttsStopped") {
   if (!state.tts.supported) return;
   state.tts.requestedStop = true;
   state.tts.playbackId += 1;
-  clearTtsHighlightTimers();
+  stopTtsTracker();
   window.speechSynthesis.cancel();
   state.tts.chunks = [];
   state.tts.chunkIndex = 0;
@@ -1837,6 +1948,7 @@ document.addEventListener("visibilitychange", syncReadingTimer);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.tts.isPlaying && !state.tts.isPaused) {
     window.speechSynthesis.pause();
+    pauseTtsTracker();
     state.tts.isPaused = true;
     setTtsStatus("ttsPaused");
   }
