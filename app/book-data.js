@@ -3,7 +3,7 @@ window.MUYU_BOOKS = [
     "title": "鬼吹灯之精绝古城",
     "author": "天下霸唱",
     "progress": 0,
-    "color": "sage",
+    "color": "blue",
     "chapters": [
       {
         "title": "引子",
