@@ -1925,6 +1925,13 @@ document.querySelector("#authLanguageToggle").addEventListener("click", () => {
   applyLanguage();
 });
 
+document.addEventListener("pointerdown", (event) => {
+  if (!state.dictionarySelection) return;
+  const target = event.target;
+  if (target.closest("#definitionPopover") || target.closest(".reader-term")) return;
+  hideDefinition();
+});
+
 document.querySelector("#readerText").addEventListener("click", (event) => {
   const target = event.target.closest(".reader-term");
   if (!target) {
