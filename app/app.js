@@ -8,6 +8,7 @@ const state = {
   language: loadLanguage(),
   readingStats: loadReadingStats(),
   bookProgress: loadBookProgress(),
+  libraryQuery: "",
   activeView: "home",
   readingTimer: null,
   currentBook: 0,
@@ -29,6 +30,16 @@ const state = {
     playbackId: 0,
     charIndex: 0,
     statusKey: "ttsReady"
+  },
+  ambient: {
+    supported: "AudioContext" in window || "webkitAudioContext" in window,
+    selection: loadAmbientSelection(),
+    muted: loadAmbientMuted(),
+    volume: loadAmbientVolume(),
+    context: null,
+    masterGain: null,
+    nodes: [],
+    isPlaying: false
   }
 };
 
@@ -55,6 +66,9 @@ const translations = {
     recentTitle: "近期阅读",
     recentSubtitle: "轻轻接回上次的节奏",
     libraryTitle: "我的书架",
+    librarySearchLabel: "搜索书架",
+    librarySearchPlaceholder: "搜索书名、作者或章节",
+    libraryEmpty: "没有找到相关书目",
     booksUnit: "本书",
     chaptersUnit: "章",
     profileCaption: "个人资料",
@@ -98,6 +112,16 @@ const translations = {
     tocTitle: "目录",
     tocClose: "关闭目录",
     tocCurrent: "当前",
+    ambientCaption: "阅读环境",
+    ambientTitle: "环境音乐",
+    ambientChoice: "环境音乐选择",
+    ambientNone: "无",
+    ambientRain: "细雨",
+    ambientForest: "林风",
+    ambientLantern: "灯下",
+    ambientVolume: "音量",
+    ambientMute: "静音",
+    ambientUnmute: "取消静音",
     unknownPinyin: "未收录",
     unknownMeaning: "No local definition yet",
     languageToggle: "EN"
@@ -120,6 +144,9 @@ const translations = {
     recentTitle: "Recent Reads",
     recentSubtitle: "Ease back into your pace",
     libraryTitle: "My Library",
+    librarySearchLabel: "Search library",
+    librarySearchPlaceholder: "Search title, author, or chapter",
+    libraryEmpty: "No matching books found",
     booksUnit: "books",
     chaptersUnit: "chapters",
     profileCaption: "Profile",
@@ -163,6 +190,16 @@ const translations = {
     tocTitle: "Contents",
     tocClose: "Close contents",
     tocCurrent: "Current",
+    ambientCaption: "Reading atmosphere",
+    ambientTitle: "Ambient music",
+    ambientChoice: "Ambient music selection",
+    ambientNone: "None",
+    ambientRain: "Rain",
+    ambientForest: "Forest",
+    ambientLantern: "Lantern",
+    ambientVolume: "Volume",
+    ambientMute: "Mute",
+    ambientUnmute: "Unmute",
     unknownPinyin: "Not saved",
     unknownMeaning: "No local definition yet",
     languageToggle: "中"
@@ -301,6 +338,26 @@ function saveTtsRate() {
   localStorage.setItem(storageKey("tts-rate"), String(state.tts.rate));
 }
 
+function loadAmbientSelection() {
+  const saved = localStorage.getItem(storageKey("ambient-selection"));
+  return ["none", "rain", "forest", "lantern"].includes(saved) ? saved : "none";
+}
+
+function loadAmbientMuted() {
+  return localStorage.getItem(storageKey("ambient-muted")) === "true";
+}
+
+function loadAmbientVolume() {
+  const saved = Number(localStorage.getItem(storageKey("ambient-volume")));
+  return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : 0.35;
+}
+
+function saveAmbientSettings() {
+  localStorage.setItem(storageKey("ambient-selection"), state.ambient.selection);
+  localStorage.setItem(storageKey("ambient-muted"), String(state.ambient.muted));
+  localStorage.setItem(storageKey("ambient-volume"), String(state.ambient.volume));
+}
+
 function normalizeAccountName(name) {
   return name.trim().toLowerCase();
 }
@@ -334,6 +391,7 @@ function setAuthMode(mode) {
 
 function showAuth(message = "") {
   stopTts("ttsIdle");
+  stopAmbient();
   syncReadingTimer();
   document.body.classList.add("auth-locked");
   document.querySelector("#authOverlay").hidden = false;
@@ -365,6 +423,7 @@ function loadAccountState() {
   state.language = loadLanguage();
   state.readingStats = loadReadingStats();
   state.bookProgress = loadBookProgress();
+  state.libraryQuery = "";
   state.currentBook = 0;
   state.currentChapter = 0;
   state.currentReaderText = "";
@@ -373,6 +432,10 @@ function loadAccountState() {
   state.tts.rate = loadTtsRate();
   state.tts.charIndex = 0;
   state.tts.statusKey = "ttsReady";
+  state.ambient.selection = loadAmbientSelection();
+  state.ambient.muted = loadAmbientMuted();
+  state.ambient.volume = loadAmbientVolume();
+  stopAmbient();
 }
 
 function createAccount(name, pin) {
@@ -521,6 +584,9 @@ function applyLanguage() {
   document.querySelectorAll("[data-i18n]").forEach((element) => {
     element.textContent = t(element.dataset.i18n);
   });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  });
   document.querySelectorAll("[data-i18n-aria]").forEach((element) => {
     element.setAttribute("aria-label", t(element.dataset.i18nAria));
   });
@@ -529,6 +595,7 @@ function applyLanguage() {
   setAuthMode(document.querySelector("#authForm").dataset.mode || (hasAccounts() ? "login" : "create"));
   updateProfile();
   updateTtsUi();
+  updateAmbientUi();
   renderLibrary();
   renderReadingRhythm();
   renderToc();
@@ -558,10 +625,28 @@ function renderHomeBooks() {
 }
 
 function renderLibrary() {
-  document.querySelector("#libraryCount").textContent = `${state.books.length} ${t("booksUnit")}`;
+  const query = state.libraryQuery.trim().toLowerCase();
+  document.querySelector("#librarySearchInput").value = state.libraryQuery;
+  const filteredBooks = state.books.filter((book) => {
+    if (!query) return true;
+    const searchable = [book.title, book.author]
+      .concat(book.chapters.map((chapter) => chapter.title))
+      .join(" ")
+      .toLowerCase();
+    return searchable.includes(query);
+  });
+  document.querySelector("#libraryCount").textContent = `${filteredBooks.length} ${t("booksUnit")}`;
   const list = document.querySelector("#libraryList");
   list.innerHTML = "";
-  state.books.forEach((book, index) => {
+  if (!filteredBooks.length) {
+    const empty = document.createElement("p");
+    empty.className = "library-empty";
+    empty.textContent = t("libraryEmpty");
+    list.append(empty);
+    return;
+  }
+  filteredBooks.forEach((book) => {
+    const index = state.books.findIndex((entry) => entry.title === book.title);
     const button = document.createElement("button");
     button.className = "library-card";
     button.type = "button";
@@ -576,6 +661,11 @@ function renderLibrary() {
     button.addEventListener("click", () => openBook(index));
     list.append(button);
   });
+}
+
+function setLibraryQuery(query) {
+  state.libraryQuery = query;
+  renderLibrary();
 }
 
 function renderInteractiveText(text) {
@@ -804,13 +894,25 @@ function clearTtsHighlight() {
   });
 }
 
+function getTtsHighlightTargets(index) {
+  const clampedIndex = clampTtsCharacterIndex(index);
+  const match = getDictionaryMatchAt(state.currentReaderText, clampedIndex);
+  if (match && match.term.length > 1) {
+    const targets = getActiveTargets(match.start, match.term.length);
+    if (targets.length) return targets;
+  }
+
+  const target = getReaderTermAt(clampedIndex);
+  return target ? [target] : [];
+}
+
 function highlightTtsCharacter(index) {
   clearTtsHighlight();
-  let target = getReaderTermAt(index);
-  for (let offset = 1; !target && offset < 8; offset += 1) {
-    target = getReaderTermAt(index + offset);
+  let targets = getTtsHighlightTargets(index);
+  for (let offset = 1; !targets.length && offset < 8; offset += 1) {
+    targets = getTtsHighlightTargets(index + offset);
   }
-  if (target) target.classList.add("speaking");
+  targets.forEach((target) => target.classList.add("speaking"));
 }
 
 function clampTtsCharacterIndex(index) {
@@ -997,6 +1099,141 @@ function setTtsRate(rate) {
     state.tts.isPaused = true;
   }
   updateTtsUi();
+}
+
+function getAudioContext() {
+  if (!state.ambient.supported) return null;
+  if (!state.ambient.context) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    state.ambient.context = new AudioContextClass();
+    state.ambient.masterGain = state.ambient.context.createGain();
+    state.ambient.masterGain.connect(state.ambient.context.destination);
+  }
+  return state.ambient.context;
+}
+
+function createNoiseBuffer(context, duration = 2) {
+  const buffer = context.createBuffer(1, context.sampleRate * duration, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < data.length; index += 1) {
+    data[index] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
+function addLoopedNoise(context, filterType, frequency, gainValue) {
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+  source.buffer = createNoiseBuffer(context);
+  source.loop = true;
+  filter.type = filterType;
+  filter.frequency.value = frequency;
+  gain.gain.value = gainValue;
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(state.ambient.masterGain);
+  source.start();
+  state.ambient.nodes.push(source, filter, gain);
+}
+
+function addSoftTone(context, frequency, gainValue, detune = 0) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.value = frequency;
+  oscillator.detune.value = detune;
+  gain.gain.value = gainValue;
+  oscillator.connect(gain);
+  gain.connect(state.ambient.masterGain);
+  oscillator.start();
+  state.ambient.nodes.push(oscillator, gain);
+}
+
+function stopAmbient() {
+  state.ambient.nodes.forEach((node) => {
+    if (typeof node.stop === "function") {
+      try {
+        node.stop();
+      } catch (error) {
+        // Already stopped.
+      }
+    }
+    if (typeof node.disconnect === "function") node.disconnect();
+  });
+  state.ambient.nodes = [];
+  state.ambient.isPlaying = false;
+}
+
+function updateAmbientGain() {
+  if (!state.ambient.masterGain || !state.ambient.context) return;
+  const target = state.ambient.muted || state.ambient.selection === "none" ? 0 : state.ambient.volume;
+  state.ambient.masterGain.gain.setTargetAtTime(target, state.ambient.context.currentTime, 0.08);
+}
+
+function startAmbient() {
+  if (!state.ambient.supported || state.ambient.selection === "none") {
+    stopAmbient();
+    updateAmbientUi();
+    return;
+  }
+  const context = getAudioContext();
+  if (!context) return;
+  if (context.state === "suspended") context.resume();
+  stopAmbient();
+  if (state.ambient.selection === "rain") {
+    addLoopedNoise(context, "lowpass", 1800, 0.55);
+    addLoopedNoise(context, "highpass", 2400, 0.12);
+  } else if (state.ambient.selection === "forest") {
+    addLoopedNoise(context, "bandpass", 520, 0.28);
+    addLoopedNoise(context, "lowpass", 850, 0.18);
+    addSoftTone(context, 196, 0.015, -5);
+  } else if (state.ambient.selection === "lantern") {
+    addSoftTone(context, 146.83, 0.05, -4);
+    addSoftTone(context, 220, 0.035, 3);
+    addLoopedNoise(context, "lowpass", 420, 0.08);
+  }
+  state.ambient.isPlaying = true;
+  updateAmbientGain();
+  updateAmbientUi();
+}
+
+function updateAmbientUi() {
+  const panel = document.querySelector(".ambient-panel");
+  if (!panel) return;
+  const muteToggle = document.querySelector("#ambientMuteToggle");
+  const volumeSlider = document.querySelector("#ambientVolumeSlider");
+  document.querySelectorAll("[data-ambient]").forEach((button) => {
+    const isActive = button.dataset.ambient === state.ambient.selection;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-checked", String(isActive));
+  });
+  muteToggle.classList.toggle("is-muted", state.ambient.muted);
+  muteToggle.setAttribute("aria-label", t(state.ambient.muted ? "ambientUnmute" : "ambientMute"));
+  muteToggle.disabled = !state.ambient.supported || state.ambient.selection === "none";
+  volumeSlider.value = String(state.ambient.volume);
+  volumeSlider.disabled = !state.ambient.supported || state.ambient.selection === "none";
+  panel.classList.toggle("is-muted", state.ambient.muted);
+}
+
+function setAmbientSelection(selection) {
+  state.ambient.selection = selection;
+  saveAmbientSettings();
+  startAmbient();
+}
+
+function setAmbientMuted(muted) {
+  state.ambient.muted = muted;
+  saveAmbientSettings();
+  updateAmbientGain();
+  updateAmbientUi();
+}
+
+function setAmbientVolume(volume) {
+  state.ambient.volume = Math.max(0, Math.min(1, volume));
+  saveAmbientSettings();
+  updateAmbientGain();
+  updateAmbientUi();
 }
 
 const toneMarks = {
@@ -1292,6 +1529,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("beforeunload", () => {
   if (state.readingTimer) saveReadingStats();
   stopTts("ttsIdle");
+  stopAmbient();
 });
 
 document.querySelector("#profileForm").addEventListener("submit", (event) => {
@@ -1369,6 +1607,30 @@ document.querySelector("#ttsForward").addEventListener("click", () => nudgeTtsCh
 
 document.querySelector("#ttsRateSlider").addEventListener("input", (event) => {
   setTtsRate(Number(event.target.value));
+});
+
+document.querySelector("#ambientOptions").addEventListener("click", (event) => {
+  const option = event.target.closest("[data-ambient]");
+  if (!option) return;
+  setAmbientSelection(option.dataset.ambient);
+});
+
+document.querySelector("#ambientMuteToggle").addEventListener("click", () => {
+  setAmbientMuted(!state.ambient.muted);
+  if (!state.ambient.muted && state.ambient.selection !== "none" && !state.ambient.isPlaying) {
+    startAmbient();
+  }
+});
+
+document.querySelector("#ambientVolumeSlider").addEventListener("input", (event) => {
+  setAmbientVolume(Number(event.target.value));
+  if (state.ambient.selection !== "none" && !state.ambient.isPlaying) {
+    startAmbient();
+  }
+});
+
+document.querySelector("#librarySearchInput").addEventListener("input", (event) => {
+  setLibraryQuery(event.target.value.trim());
 });
 
 if (state.tts.supported) {
