@@ -10,9 +10,26 @@
       href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Serif+SC:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260511-12" />
+    <link rel="stylesheet" href="styles.css?v=20260511-13" />
   </head>
   <body>
+    <section class="auth-overlay" id="authOverlay" hidden>
+      <form class="auth-card" id="authForm">
+        <p class="caption" id="authModeLabel">创建账户</p>
+        <h2 id="authTitle">沐浴读书</h2>
+        <label>
+          <span>用户名</span>
+          <input id="authNameInput" autocomplete="username" required maxlength="24" />
+        </label>
+        <label>
+          <span>PIN</span>
+          <input id="authPinInput" autocomplete="current-password" inputmode="numeric" required maxlength="12" type="password" />
+        </label>
+        <p class="auth-error" id="authError" hidden></p>
+        <button class="primary-button" type="submit" id="authSubmit">创建账户</button>
+        <button class="primary-button secondary-button" type="button" id="authModeToggle">已有账户？登录</button>
+      </form>
+    </section>
     <main class="shell">
       <section class="phone" aria-label="沐浴读书">
         <header class="topbar">
@@ -143,6 +160,9 @@
               <p id="definitionPinyin">yue4</p>
               <strong id="definitionMeaning">moon</strong>
             </div>
+            <button class="icon-button definition-audio-button" type="button" id="definitionAudioJump" aria-label="从这里朗读">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M17 9.5a4 4 0 0 1 0 5" /><path d="M19.5 7a7 7 0 0 1 0 10" /></svg>
+            </button>
           </div>
           <div class="reader-controls">
             <button class="icon-button" type="button" id="prevChapter" data-chapter-action="prev" aria-label="上一章">
@@ -170,13 +190,14 @@
               <input id="displayNameInput" required maxlength="24" value="袁孝正" />
             </label>
             <button class="primary-button" type="submit" data-i18n="saveName">保存名称</button>
+            <button class="primary-button secondary-button" type="button" id="logoutButton">切换账户</button>
           </form>
         </section>
 
       </section>
     </main>
-    <script src="book-data.js?v=20260511-12"></script>
-    <script src="dictionary-data.js?v=20260511-12"></script>
-    <script src="app.js?v=20260511-12"></script>
+    <script src="book-data.js?v=20260511-13"></script>
+    <script src="dictionary-data.js?v=20260511-13"></script>
+    <script src="app.js?v=20260511-13"></script>
   </body>
 </html>
