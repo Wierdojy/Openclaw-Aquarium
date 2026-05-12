@@ -469,13 +469,11 @@ h3 {
 .reader-term.active-start {
   border-bottom-left-radius: 8px;
   border-top-left-radius: 8px;
-  padding-left: 4px;
 }
 
 .reader-term.active-end {
   border-bottom-right-radius: 8px;
   border-top-right-radius: 8px;
-  padding-right: 4px;
 }
 
 .definition-popover {
