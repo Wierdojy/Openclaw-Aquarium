@@ -12,7 +12,7 @@
   --terra: #fdb292;
   --terra-dark: #78422a;
   --blue: #88a6b0;
-  --blue-dark: #1a1a1a;
+  --blue-dark: #1e3c44;
   --shadow: 0 20px 45px rgba(74, 101, 78, 0.11);
 }
 
@@ -174,13 +174,13 @@ h3 {
 }
 
 .tab-library.active {
-  background: #ffffff;
-  color: #1a1a1a;
+  background: #ffdbcd;
+  color: var(--terra-dark);
 }
 
 .tab-reader.active {
-  background: #f5f5f5;
-  color: #1a1a1a;
+  background: #c9e8f2;
+  color: var(--blue-dark);
 }
 
 .view {
@@ -205,7 +205,7 @@ h3 {
 }
 
 .reading-accent {
-  color: #1a1a1a;
+  color: var(--blue-dark);
 }
 
 .progress-path {
@@ -244,8 +244,8 @@ h3 {
 }
 
 .read-button {
-  background: #f0f0f0;
-  color: #1a1a1a;
+  background: var(--blue);
+  color: var(--blue-dark);
 }
 
 .rhythm-section,
@@ -254,22 +254,27 @@ h3 {
   margin-top: 24px;
 }
 
+.rhythm-section h3,
+.rhythm-section #rhythmSubtitle {
+  color: var(--blue-dark);
+}
+
 .small-pill {
   border-radius: 999px;
-  background: #f5f5f5;
-  color: #1a1a1a;
+  background: #c9e8f2;
+  color: var(--blue-dark);
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 800;
 }
 
 .browsing-section h3 {
-  color: #1a1a1a;
+  color: var(--terra-dark);
 }
 
 .browsing-section .section-heading p,
 .browsing-section #libraryCount {
-  color: #666666;
+  color: var(--terra-dark);
 }
 
 .road-chart {
@@ -384,7 +389,7 @@ h3 {
 
 .browsing-section .book-card,
 .browsing-section .library-card {
-  background: #ffffff;
+  background: #fff1e9;
 }
 
 .library-card .cover {
@@ -430,8 +435,8 @@ h3 {
 }
 
 .reader-term.active {
-  background: #f5f5f5;
-  color: #1a1a1a;
+  background: #c9e8f2;
+  color: var(--blue-dark);
 }
 
 .definition-popover {
@@ -475,8 +480,8 @@ h3 {
   min-width: 44px;
   min-height: 44px;
   border-radius: 12px;
-  background: #f5f5f5;
-  color: #1a1a1a;
+  background: #c9e8f2;
+  color: var(--blue-dark);
   display: grid;
   place-items: center;
   font-family: "Noto Serif SC", serif;
@@ -489,7 +494,7 @@ h3 {
 
 .definition-popover p {
   margin: 0;
-  color: #1a1a1a;
+  color: var(--blue-dark);
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
