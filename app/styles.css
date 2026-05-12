@@ -79,7 +79,7 @@ button {
 
 .brand-name {
   margin: 0 0 6px;
-  color: var(--sage-dark);
+  color: var(--terra-dark);
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
@@ -190,7 +190,7 @@ h3 {
 }
 
 .section-kicker {
-  color: var(--sage-dark);
+  color: var(--terra-dark);
   margin-bottom: 10px;
 }
 
@@ -206,7 +206,7 @@ h3 {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--sage);
+  background: var(--terra);
 }
 
 .excerpt {
@@ -237,8 +237,8 @@ h3 {
 
 .small-pill {
   border-radius: 999px;
-  background: var(--sage-soft);
-  color: var(--sage-dark);
+  background: #c9e8f2;
+  color: var(--blue-dark);
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 800;
@@ -260,8 +260,16 @@ h3 {
   background: var(--sage-soft);
 }
 
+.road-chart span:nth-child(2n) {
+  background: #ffdbcd;
+}
+
+.road-chart span:nth-child(3n) {
+  background: #c9e8f2;
+}
+
 .road-chart .today {
-  background: var(--sage);
+  background: var(--blue);
 }
 
 .road-chart .dim {
@@ -309,7 +317,7 @@ h3 {
 .cover {
   height: 92px;
   border-radius: 13px;
-  background: var(--sage);
+  background: var(--terra);
 }
 
 .cover.terra {
@@ -397,8 +405,8 @@ h3 {
 }
 
 .reader-term.active {
-  background: var(--sage-soft);
-  color: var(--sage-dark);
+  background: #ffdbcd;
+  color: var(--terra-dark);
 }
 
 .definition-popover {
@@ -442,8 +450,8 @@ h3 {
   min-width: 44px;
   min-height: 44px;
   border-radius: 12px;
-  background: var(--sage-soft);
-  color: var(--sage-dark);
+  background: #ffdbcd;
+  color: var(--terra-dark);
   display: grid;
   place-items: center;
   font-family: "Noto Serif SC", serif;
@@ -456,7 +464,7 @@ h3 {
 
 .definition-popover p {
   margin: 0;
-  color: var(--sage-dark);
+  color: var(--blue-dark);
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
