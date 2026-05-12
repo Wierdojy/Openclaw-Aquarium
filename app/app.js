@@ -426,6 +426,7 @@ function renderReader() {
   document.querySelector("#currentProgressPath").setAttribute("aria-label", `阅读进度 ${progress}%`);
   renderHomeBooks();
   renderLibrary();
+  updateChapterControls();
 }
 
 const toneMarks = {
@@ -615,6 +616,30 @@ function openBook(index) {
   setView("reader");
 }
 
+function updateChapterControls() {
+  const book = state.books[state.currentBook];
+  const progressText = `${state.currentChapter + 1} / ${book.chapters.length}`;
+  document.querySelectorAll("[data-chapter-progress]").forEach((node) => {
+    node.textContent = progressText;
+  });
+  document.querySelectorAll('[data-chapter-action="prev"]').forEach((button) => {
+    button.disabled = state.currentChapter <= 0;
+  });
+  document.querySelectorAll('[data-chapter-action="next"]').forEach((button) => {
+    button.disabled = state.currentChapter >= book.chapters.length - 1;
+  });
+}
+
+function changeChapter(direction) {
+  const book = state.books[state.currentBook];
+  const nextChapter = state.currentChapter + direction;
+  if (nextChapter < 0 || nextChapter >= book.chapters.length) return;
+  state.currentChapter = nextChapter;
+  renderReader();
+  hideDefinition();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function parseChapters(rawText) {
   const text = rawText.trim();
   const parts = text.split(/\n(?=第[一二三四五六七八九十百千万\d]+[章节回卷部].*)/g).filter(Boolean);
@@ -675,19 +700,10 @@ document.querySelector("#profileForm").addEventListener("submit", (event) => {
   setView("home");
 });
 
-document.querySelector("#prevChapter").addEventListener("click", () => {
-  if (state.currentChapter > 0) {
-    state.currentChapter -= 1;
-    renderReader();
-  }
-});
-
-document.querySelector("#nextChapter").addEventListener("click", () => {
-  const book = state.books[state.currentBook];
-  if (state.currentChapter < book.chapters.length - 1) {
-    state.currentChapter += 1;
-    renderReader();
-  }
+document.querySelectorAll("[data-chapter-action]").forEach((button) => {
+  button.addEventListener("click", () => {
+    changeChapter(button.dataset.chapterAction === "next" ? 1 : -1);
+  });
 });
 
 function renderAll() {
