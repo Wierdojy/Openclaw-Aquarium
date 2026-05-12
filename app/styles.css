@@ -79,7 +79,7 @@ button {
 
 .brand-name {
   margin: 0 0 6px;
-  color: var(--sage-dark);
+  color: var(--muted);
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
@@ -118,7 +118,7 @@ h3 {
   border: 0;
   border-radius: 999px;
   background: var(--surface);
-  color: var(--sage-dark);
+  color: var(--ink);
   display: grid;
   place-items: center;
 }
@@ -129,7 +129,7 @@ h3 {
   border: 0;
   border-radius: 999px;
   background: var(--surface);
-  color: var(--sage-dark);
+  color: var(--ink);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -170,17 +170,17 @@ h3 {
 
 .tab.active {
   background: var(--sage-soft);
-  color: var(--sage-dark);
+  color: var(--ink);
 }
 
 .tab-library.active {
   background: #ffdbcd;
-  color: var(--terra-dark);
+  color: var(--ink);
 }
 
 .tab-reader.active {
   background: #c9e8f2;
-  color: var(--blue-dark);
+  color: var(--ink);
 }
 
 .view {
@@ -200,12 +200,12 @@ h3 {
 }
 
 .section-kicker {
-  color: var(--sage-dark);
+  color: var(--muted);
   margin-bottom: 10px;
 }
 
 .reading-accent {
-  color: var(--blue-dark);
+  color: var(--muted);
 }
 
 .progress-path {
@@ -239,13 +239,13 @@ h3 {
   padding: 0 20px;
   font-weight: 800;
   background: var(--sage);
-  color: #233d29;
+  color: var(--ink);
   width: 100%;
 }
 
 .read-button {
   background: var(--blue);
-  color: var(--blue-dark);
+  color: var(--ink);
 }
 
 .rhythm-section,
@@ -256,25 +256,25 @@ h3 {
 
 .rhythm-section h3,
 .rhythm-section #rhythmSubtitle {
-  color: var(--blue-dark);
+  color: var(--ink);
 }
 
 .small-pill {
   border-radius: 999px;
   background: #c9e8f2;
-  color: var(--blue-dark);
+  color: var(--ink);
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 800;
 }
 
 .browsing-section h3 {
-  color: var(--terra-dark);
+  color: var(--ink);
 }
 
 .browsing-section .section-heading p,
 .browsing-section #libraryCount {
-  color: var(--terra-dark);
+  color: var(--muted);
 }
 
 .road-chart {
@@ -345,12 +345,20 @@ h3 {
   background: var(--sage);
 }
 
+.cover.sage {
+  background: var(--sage);
+}
+
 .cover.terra {
   background: var(--terra);
 }
 
 .cover.blue {
   background: var(--blue);
+}
+
+.cover.mist {
+  background: #d1d0cb;
 }
 
 .book-card strong,
@@ -389,7 +397,7 @@ h3 {
 
 .browsing-section .book-card,
 .browsing-section .library-card {
-  background: #fff1e9;
+  background: var(--surface);
 }
 
 .library-card .cover {
@@ -436,7 +444,7 @@ h3 {
 
 .reader-term.active {
   background: #c9e8f2;
-  color: var(--blue-dark);
+  color: var(--ink);
 }
 
 .definition-popover {
@@ -481,7 +489,7 @@ h3 {
   min-height: 44px;
   border-radius: 12px;
   background: #c9e8f2;
-  color: var(--blue-dark);
+  color: var(--ink);
   display: grid;
   place-items: center;
   font-family: "Noto Serif SC", serif;
@@ -494,7 +502,7 @@ h3 {
 
 .definition-popover p {
   margin: 0;
-  color: var(--blue-dark);
+  color: var(--ink);
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
@@ -540,7 +548,7 @@ h3 {
   aspect-ratio: 1;
   border-radius: 22px;
   background: var(--sage-soft);
-  color: var(--sage-dark);
+  color: var(--ink);
   display: grid;
   place-items: center;
   font-size: 30px;
