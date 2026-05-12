@@ -381,7 +381,6 @@ function renderInteractiveText(text) {
   const container = document.querySelector("#readerText");
   container.innerHTML = "";
   let index = 0;
-  const wordElements = [];
   while (index < text.length) {
     const char = text[index];
     if (isChineseCharacter(char)) {
@@ -389,16 +388,14 @@ function renderInteractiveText(text) {
       button.className = "reader-term";
       button.type = "button";
       button.textContent = char;
-      button.dataset.term = char;
-      button.dataset.wordIndex = wordElements.length;
+      button.dataset.char = char;
+      button.dataset.index = String(index);
       container.append(button);
-      wordElements.push(button);
     } else {
       container.append(document.createTextNode(char));
     }
     index += 1;
   }
-  state.speechState.wordElements = wordElements;
   // Start loading dictionary in background for future interactive features
   loadDictionary().catch(console.error);
 }
@@ -509,6 +506,30 @@ function hideDefinition() {
 }
 
 // TTS Functions
+function getReaderTermAt(index) {
+  return document.querySelector(`#readerText .reader-term[data-index="${index}"]`);
+}
+
+function clearSpeechHighlight() {
+  document.querySelectorAll(".reader-term.speaking").forEach((node) => {
+    node.classList.remove("speaking");
+  });
+}
+
+function updateSpeechHighlight(index) {
+  clearSpeechHighlight();
+  const target = getReaderTermAt(index);
+  if (target) {
+    target.classList.add("speaking");
+    state.speechState.currentWordIndex = index;
+    // Scroll into view if needed
+    target.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'center' 
+    });
+  }
+}
+
 function stopSpeech() {
   if (state.speechState.utterance) {
     speechSynthesis.cancel();
@@ -548,6 +569,8 @@ function speakChapter() {
   
   if (!chapter || !chapter.text) return;
   
+  state.speechState.currentWordIndex = 0;
+  
   // Create utterance with Chinese text
   const utterance = new SpeechSynthesisUtterance(chapter.text);
   utterance.lang = 'zh-CN';
@@ -559,49 +582,56 @@ function speakChapter() {
     utterance.voice = chineseVoice;
   }
   
+  // Track word boundaries if supported
+  utterance.onboundary = (event) => {
+    if (event.name === 'word' || event.name === 'sentence') {
+      if (typeof event.charIndex === 'number') {
+        updateSpeechHighlight(event.charIndex);
+      }
+    }
+  };
+  
   utterance.onend = () => {
     state.speechState.isPlaying = false;
     state.speechState.utterance = null;
-    state.speechState.speakInterval = clearInterval(state.speechState.speakInterval);
+    if (state.speechState.speakInterval) {
+      clearInterval(state.speechState.speakInterval);
+      state.speechState.speakInterval = null;
+    }
     updateSpeechUI();
-    // Clear highlights
-    document.querySelectorAll(".reader-term.speaking").forEach((node) => {
-      node.classList.remove("speaking");
-    });
+    clearSpeechHighlight();
   };
   
   utterance.onerror = (event) => {
     console.error('Speech synthesis error:', event);
     state.speechState.isPlaying = false;
     state.speechState.utterance = null;
-    state.speechState.speakInterval = clearInterval(state.speechState.speakInterval);
+    if (state.speechState.speakInterval) {
+      clearInterval(state.speechState.speakInterval);
+      state.speechState.speakInterval = null;
+    }
     updateSpeechUI();
   };
   
   state.speechState.utterance = utterance;
   state.speechState.isPlaying = true;
   
-  // Fallback: If onboundary doesn't fire (common with Chinese text), 
+  // Fallback: If onboundary doesn't fire reliably (common with Chinese text),
   // use a manual timing approach based on text length
-  const chineseChars = chapter.text.split('').filter(c => isChineseCharacter(c));
-  const intervalMs = 300; // Fixed 300ms per Chinese character
+  const intervalMs = 300; // ~300ms per character for Chinese
   
-  let wordIndex = 0;
   state.speechState.speakInterval = setInterval(() => {
-    if (wordIndex < state.speechState.wordElements.length && state.speechState.isPlaying) {
-      // Clear previous highlight
-      if (wordIndex > 0) {
-        state.speechState.wordElements[wordIndex - 1].classList.remove("speaking");
+    if (state.speechState.isPlaying && state.speechState.currentWordIndex < chapter.text.length) {
+      updateSpeechHighlight(state.speechState.currentWordIndex);
+      // Find next Chinese character index
+      let nextIndex = state.speechState.currentWordIndex + 1;
+      while (nextIndex < chapter.text.length && !isChineseCharacter(chapter.text[nextIndex])) {
+        nextIndex++;
       }
-      // Highlight current word
-      state.speechState.wordElements[wordIndex].classList.add("speaking");
-      state.speechState.wordElements[wordIndex].scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
-      wordIndex++;
+      state.speechState.currentWordIndex = nextIndex;
     } else {
       clearInterval(state.speechState.speakInterval);
+      state.speechState.speakInterval = null;
     }
   }, intervalMs);
   
