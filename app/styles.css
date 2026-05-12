@@ -254,6 +254,11 @@ h3 {
   margin-top: 24px;
 }
 
+.rhythm-section h3[data-i18n="rhythmTitle"],
+.rhythm-section #rhythmSubtitle {
+  color: var(--blue);
+}
+
 .small-pill {
   border-radius: 999px;
   background: #f5f5f5;
@@ -432,6 +437,17 @@ h3 {
 .reader-term.active {
   background: #f5f5f5;
   color: #1a1a1a;
+}
+
+.reader-term.speaking {
+  background: #88a6b0;
+  color: #ffffff;
+  border-radius: 8px;
+}
+
+.reader-term.speaking.active {
+  background: #6a8e9a;
+  color: #ffffff;
 }
 
 .definition-popover {

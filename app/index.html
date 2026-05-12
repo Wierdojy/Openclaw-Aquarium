@@ -105,6 +105,15 @@
             <button class="icon-button" type="button" id="prevChapter" aria-label="上一章">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
             </button>
+            <button class="icon-button" type="button" id="playSpeech" aria-label="朗读" title="朗读">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5z" fill="currentColor" stroke="none" /></svg>
+            </button>
+            <button class="icon-button" type="button" id="pauseSpeech" aria-label="暂停" title="暂停" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" fill="currentColor" stroke="none" /></svg>
+            </button>
+            <button class="icon-button" type="button" id="stopSpeech" aria-label="停止" title="停止">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6V6z" fill="currentColor" stroke="none" /></svg>
+            </button>
             <div class="chapter-progress" id="chapterProgress">1 / 3</div>
             <button class="icon-button" type="button" id="nextChapter" aria-label="下一章">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
@@ -133,7 +142,6 @@
       </section>
     </main>
     <script src="book-data.js"></script>
-    <script src="dictionary-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

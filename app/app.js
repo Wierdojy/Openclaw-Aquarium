@@ -10,7 +10,13 @@ const state = {
   activeView: "home",
   readingTimer: null,
   currentBook: 0,
-  currentChapter: 0
+  currentChapter: 0,
+  speechState: {
+    utterance: null,
+    isPlaying: false,
+    currentWordIndex: -1,
+    wordElements: []
+  }
 };
 
 const translations = {
@@ -86,15 +92,45 @@ const customDictionary = {
   一声回响: ["yi1 sheng1 hui2 xiang3", "an echo"]
 };
 
-const characterDictionary = { ...(window.MUYU_DICTIONARY || {}), ...customDictionary };
-const dictionaryTermsByFirstChar = Object.keys(characterDictionary).reduce((groups, term) => {
-  const firstChar = term[0];
-  if (!groups[firstChar]) groups[firstChar] = [];
-  groups[firstChar].push(term);
-  return groups;
-}, {});
+let characterDictionary = null;
 
-Object.values(dictionaryTermsByFirstChar).forEach((terms) => terms.sort((a, b) => b.length - a.length));
+async function loadDictionary() {
+  if (characterDictionary) return characterDictionary;
+  if (window.MUYU_DICTIONARY) {
+    characterDictionary = { ...window.MUYU_DICTIONARY, ...customDictionary };
+    return characterDictionary;
+  }
+  // Dynamically load dictionary if not already present
+  const response = await fetch('dictionary-data.js');
+  const text = await response.text();
+  const match = text.match(/window\.MUYU_DICTIONARY = (\{.+\});/s);
+  if (match) {
+    try {
+      window.MUYU_DICTIONARY = JSON.parse(match[1]);
+      characterDictionary = { ...window.MUYU_DICTIONARY, ...customDictionary };
+    } catch (e) {
+      console.error('Failed to parse dictionary:', e);
+      characterDictionary = customDictionary;
+    }
+  } else {
+    characterDictionary = customDictionary;
+  }
+  return characterDictionary;
+}
+let dictionaryTermsByFirstChar = null;
+
+function getDictionaryTermsByFirstChar() {
+  if (dictionaryTermsByFirstChar) return dictionaryTermsByFirstChar;
+  if (!characterDictionary) return {};
+  dictionaryTermsByFirstChar = Object.keys(characterDictionary).reduce((groups, term) => {
+    const firstChar = term[0];
+    if (!groups[firstChar]) groups[firstChar] = [];
+    groups[firstChar].push(term);
+    return groups;
+  }, {});
+  Object.values(dictionaryTermsByFirstChar).forEach((terms) => terms.sort((a, b) => b.length - a.length));
+  return dictionaryTermsByFirstChar;
+}
 
 function isChineseCharacter(char) {
   return /\p{Script=Han}/u.test(char);
@@ -345,19 +381,8 @@ function renderInteractiveText(text) {
   const container = document.querySelector("#readerText");
   container.innerHTML = "";
   let index = 0;
+  const wordElements = [];
   while (index < text.length) {
-    const remaining = text.slice(index);
-    const term = (dictionaryTermsByFirstChar[remaining[0]] || []).find((entry) => remaining.startsWith(entry));
-    if (term) {
-      const button = document.createElement("button");
-      button.className = "reader-term";
-      button.type = "button";
-      button.textContent = term;
-      button.dataset.term = term;
-      container.append(button);
-      index += term.length;
-      continue;
-    }
     const char = text[index];
     if (isChineseCharacter(char)) {
       const button = document.createElement("button");
@@ -365,12 +390,17 @@ function renderInteractiveText(text) {
       button.type = "button";
       button.textContent = char;
       button.dataset.term = char;
+      button.dataset.wordIndex = wordElements.length;
       container.append(button);
+      wordElements.push(button);
     } else {
       container.append(document.createTextNode(char));
     }
     index += 1;
   }
+  state.speechState.wordElements = wordElements;
+  // Start loading dictionary in background for future interactive features
+  loadDictionary().catch(console.error);
 }
 
 function getBookProgress(bookIndex = state.currentBook) {
@@ -380,6 +410,9 @@ function getBookProgress(bookIndex = state.currentBook) {
 }
 
 function renderReader() {
+  // Stop any playing speech when changing chapters
+  stopSpeech();
+  
   const book = state.books[state.currentBook];
   const chapter = book.chapters[state.currentChapter];
   const progress = getBookProgress();
@@ -396,7 +429,7 @@ function renderReader() {
   document.querySelector("#chapterProgress").textContent = `${state.currentChapter + 1} / ${book.chapters.length}`;
   document.querySelector("#currentTitle").textContent = book.title;
   document.querySelector("#currentChapter").textContent = `${chapter.title} · ${progress}%`;
-  document.querySelector("#currentExcerpt").textContent = chapter.text.split("\n").find(Boolean) || "";
+  document.querySelector("#currentExcerpt").textContent = chapter.text.split("\n").find((line) => line.trim()) || "";
   document.querySelector("#currentProgressFill").style.width = `${progress}%`;
   document.querySelector("#currentProgressPath").setAttribute("aria-label", `阅读进度 ${progress}%`);
   renderHomeBooks();
@@ -456,7 +489,10 @@ function showDefinition(target) {
   const term = target.dataset.term;
   const [pinyin, meaning] = characterDictionary[term] || [t("unknownPinyin"), t("unknownMeaning")];
   const popover = document.querySelector("#definitionPopover");
-  document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
+  // Don't remove .active class if speech is playing - that's used for TTS highlighting
+  if (!state.speechState.isPlaying) {
+    document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
+  }
   target.classList.add("active");
   document.querySelector("#definitionChar").textContent = term;
   document.querySelector("#definitionPinyin").textContent = formatPinyin(pinyin);
@@ -466,8 +502,132 @@ function showDefinition(target) {
 }
 
 function hideDefinition() {
+  // Don't hide definition if speech is playing
+  if (state.speechState.isPlaying) return;
   document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
   document.querySelector("#definitionPopover").hidden = true;
+}
+
+// TTS Functions
+function stopSpeech() {
+  if (state.speechState.utterance) {
+    speechSynthesis.cancel();
+    state.speechState.utterance = null;
+  }
+  if (state.speechState.speakInterval) {
+    clearInterval(state.speechState.speakInterval);
+    state.speechState.speakInterval = null;
+  }
+  state.speechState.isPlaying = false;
+  state.speechState.currentWordIndex = -1;
+  // Clear all speaking highlights
+  document.querySelectorAll(".reader-term.speaking").forEach((node) => {
+    node.classList.remove("speaking");
+  });
+  updateSpeechUI();
+}
+
+function updateSpeechUI() {
+  const playBtn = document.querySelector("#playSpeech");
+  const pauseBtn = document.querySelector("#pauseSpeech");
+  if (state.speechState.isPlaying) {
+    playBtn.hidden = true;
+    pauseBtn.hidden = false;
+  } else {
+    playBtn.hidden = false;
+    pauseBtn.hidden = true;
+  }
+}
+
+function speakChapter() {
+  // Stop any current speech
+  stopSpeech();
+  
+  const book = state.books[state.currentBook];
+  const chapter = book.chapters[state.currentChapter];
+  
+  if (!chapter || !chapter.text) return;
+  
+  // Create utterance with Chinese text
+  const utterance = new SpeechSynthesisUtterance(chapter.text);
+  utterance.lang = 'zh-CN';
+  
+  // Try to find a Chinese voice
+  const voices = speechSynthesis.getVoices();
+  const chineseVoice = voices.find(v => v.lang.startsWith('zh'));
+  if (chineseVoice) {
+    utterance.voice = chineseVoice;
+  }
+  
+  utterance.onend = () => {
+    state.speechState.isPlaying = false;
+    state.speechState.utterance = null;
+    state.speechState.speakInterval = clearInterval(state.speechState.speakInterval);
+    updateSpeechUI();
+    // Clear highlights
+    document.querySelectorAll(".reader-term.speaking").forEach((node) => {
+      node.classList.remove("speaking");
+    });
+  };
+  
+  utterance.onerror = (event) => {
+    console.error('Speech synthesis error:', event);
+    state.speechState.isPlaying = false;
+    state.speechState.utterance = null;
+    state.speechState.speakInterval = clearInterval(state.speechState.speakInterval);
+    updateSpeechUI();
+  };
+  
+  state.speechState.utterance = utterance;
+  state.speechState.isPlaying = true;
+  
+  // Fallback: If onboundary doesn't fire (common with Chinese text), 
+  // use a manual timing approach based on text length
+  const chineseChars = chapter.text.split('').filter(c => isChineseCharacter(c));
+  const intervalMs = 300; // Fixed 300ms per Chinese character
+  
+  let wordIndex = 0;
+  state.speechState.speakInterval = setInterval(() => {
+    if (wordIndex < state.speechState.wordElements.length && state.speechState.isPlaying) {
+      // Clear previous highlight
+      if (wordIndex > 0) {
+        state.speechState.wordElements[wordIndex - 1].classList.remove("speaking");
+      }
+      // Highlight current word
+      state.speechState.wordElements[wordIndex].classList.add("speaking");
+      state.speechState.wordElements[wordIndex].scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      wordIndex++;
+    } else {
+      clearInterval(state.speechState.speakInterval);
+    }
+  }, intervalMs);
+  
+  speechSynthesis.speak(utterance);
+  updateSpeechUI();
+}
+
+function pauseSpeech() {
+  if (state.speechState.isPlaying) {
+    speechSynthesis.pause();
+    state.speechState.isPlaying = false;
+    // Also pause the highlight interval
+    if (state.speechState.speakInterval) {
+      clearInterval(state.speechState.speakInterval);
+      state.speechState.speakInterval = null;
+    }
+    updateSpeechUI();
+  }
+}
+
+function resumeSpeech() {
+  if (!state.speechState.isPlaying && state.speechState.utterance) {
+    speechSynthesis.resume();
+    state.speechState.isPlaying = true;
+    updateSpeechUI();
+  }
 }
 
 function positionDefinitionPopover(target, popover) {
@@ -511,6 +671,11 @@ function syncReadingTimer() {
 }
 
 function setView(viewName) {
+  // Stop speech when leaving the reader view
+  if (viewName !== "reader" && state.activeView === "reader") {
+    stopSpeech();
+  }
+  
   state.activeView = viewName;
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.querySelector(`#${viewName}View`).classList.add("active");
@@ -565,7 +730,7 @@ document.querySelector("#readerText").addEventListener("click", (event) => {
     hideDefinition();
     return;
   }
-  showDefinition(target);
+  loadDictionary().then(() => showDefinition(target)).catch(console.error);
 });
 
 document.querySelector("#definitionPopover").addEventListener("click", hideDefinition);
@@ -602,6 +767,32 @@ document.querySelector("#nextChapter").addEventListener("click", () => {
     renderReader();
   }
 });
+
+// Speech control event listeners
+document.querySelector("#playSpeech").addEventListener("click", () => {
+  if (!state.speechState.isPlaying) {
+    if (speechSynthesis.paused) {
+      resumeSpeech();
+    } else {
+      speakChapter();
+    }
+  }
+});
+
+document.querySelector("#pauseSpeech").addEventListener("click", () => {
+  pauseSpeech();
+});
+
+document.querySelector("#stopSpeech").addEventListener("click", () => {
+  stopSpeech();
+});
+
+// Load voices when they become available
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = () => {
+    // Voices loaded
+  };
+}
 
 function renderAll() {
   applyLanguage();
