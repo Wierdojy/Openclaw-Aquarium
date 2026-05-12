@@ -1,54 +1,4 @@
-const starterBooks = [
-  {
-    title: "山月记",
-    author: "中岛敦",
-    progress: 68,
-    color: "sage",
-    chapters: [
-      {
-        title: "月下独白",
-        text:
-          "在那一轮明月之下，我仿佛看见了过去的自己。\n\n风穿过林间，影子慢慢伏低。人的心若被恐惧照见，便会把每一声回响都听成命运。\n\n我停在山道旁，等雾散开，也等一句迟来的回答。"
-      },
-      {
-        title: "林间回声",
-        text:
-          "树叶在夜色中相互摩擦，像许多人压低了声音交谈。\n\n我沿着细窄的路向前走，忽然明白，所谓归途并不总是回到旧处，有时只是终于愿意看清自己。"
-      },
-      {
-        title: "归梦",
-        text:
-          "清晨的光落在石阶上，薄得像一层纸。\n\n梦里那些沉重的名字，一个一个从胸口松开。我合上书页，听见远处有鸟声，也听见自己重新呼吸。"
-      }
-    ]
-  },
-  {
-    title: "雪国",
-    author: "川端康成",
-    progress: 65,
-    color: "terra",
-    chapters: [
-      {
-        title: "越过长隧道",
-        text:
-          "这是一段用于演示阅读体验的原创占位文本。\n\n列车穿过山腹，窗外的白光忽然展开。雪安静地落在屋檐与田埂上，像替世界放慢了呼吸。"
-      }
-    ]
-  },
-  {
-    title: "瓦尔登湖",
-    author: "梭罗",
-    progress: 88,
-    color: "blue",
-    chapters: [
-      {
-        title: "湖边清晨",
-        text:
-          "这是一段用于演示阅读体验的原创占位文本。\n\n湖面把天空收得很低，水草在岸边摇晃。人在安静处待得久了，才知道简单也可以很丰盛。"
-      }
-    ]
-  }
-];
+const starterBooks = [];
 
 const state = {
   books: loadBooks(),
@@ -346,7 +296,12 @@ function loadReadingStats() {
   const saved = localStorage.getItem("muyu-reading-stats");
   if (!saved) return {};
   try {
-    return JSON.parse(saved);
+    const parsed = JSON.parse(saved);
+    if (Object.values(parsed).some((value) => typeof value === "number")) {
+      const firstBookTitle = (window.MUYU_BOOKS || [])[0]?.title || "book";
+      return { [firstBookTitle]: parsed };
+    }
+    return parsed;
   } catch {
     return {};
   }
@@ -411,8 +366,21 @@ function getWeekDates() {
   });
 }
 
-function getDaySeconds(date) {
-  return state.readingStats[formatDateKey(date)] || 0;
+function getCurrentBook() {
+  return state.books[state.currentBook];
+}
+
+function getCurrentBookTitle() {
+  return getCurrentBook()?.title || "book";
+}
+
+function getBookReadingStats(bookTitle = getCurrentBookTitle()) {
+  if (!state.readingStats[bookTitle]) state.readingStats[bookTitle] = {};
+  return state.readingStats[bookTitle];
+}
+
+function getDaySeconds(date, bookTitle = getCurrentBookTitle()) {
+  return getBookReadingStats(bookTitle)[formatDateKey(date)] || 0;
 }
 
 function formatMinutes(seconds) {
@@ -439,7 +407,8 @@ function updateProfile() {
 
 function renderReadingRhythm() {
   const dates = getWeekDates();
-  const secondsByDay = dates.map(getDaySeconds);
+  const bookTitle = getCurrentBookTitle();
+  const secondsByDay = dates.map((date) => getDaySeconds(date, bookTitle));
   const totalSeconds = secondsByDay.reduce((sum, seconds) => sum + seconds, 0);
   const todayKey = formatDateKey(new Date());
   const maxSeconds = Math.max(...secondsByDay, 60);
@@ -463,7 +432,7 @@ function renderReadingRhythm() {
     weekRow.append(label);
   });
   document.querySelector("#rhythmSubtitle").textContent = t("rhythmSubtitle").replace("{minutes}", formatMinutes(totalSeconds));
-  document.querySelector("#todayReadingPill").textContent = t("todayPill").replace("{minutes}", formatMinutes(getDaySeconds(new Date())));
+  document.querySelector("#todayReadingPill").textContent = t("todayPill").replace("{minutes}", formatMinutes(getDaySeconds(new Date(), bookTitle)));
 }
 
 function applyLanguage() {
@@ -604,8 +573,9 @@ function hideDefinition() {
 
 function recordReadingSecond() {
   const today = formatDateKey(new Date());
-  state.readingStats[today] = (state.readingStats[today] || 0) + 1;
-  if (state.readingStats[today] % 5 === 0) saveReadingStats();
+  const stats = getBookReadingStats();
+  stats[today] = (stats[today] || 0) + 1;
+  if (stats[today] % 5 === 0) saveReadingStats();
   renderReadingRhythm();
 }
 
