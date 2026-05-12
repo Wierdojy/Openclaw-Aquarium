@@ -12,7 +12,7 @@
   --terra: #fdb292;
   --terra-dark: #78422a;
   --blue: #88a6b0;
-  --blue-dark: #1e3c44;
+  --blue-dark: #1a1a1a;
   --shadow: 0 20px 45px rgba(74, 101, 78, 0.11);
 }
 
@@ -174,13 +174,13 @@ h3 {
 }
 
 .tab-library.active {
-  background: #ffdbcd;
-  color: var(--terra-dark);
+  background: #ffffff;
+  color: #1a1a1a;
 }
 
 .tab-reader.active {
-  background: #c9e8f2;
-  color: var(--blue-dark);
+  background: #f5f5f5;
+  color: #1a1a1a;
 }
 
 .view {
@@ -205,7 +205,7 @@ h3 {
 }
 
 .reading-accent {
-  color: var(--blue-dark);
+  color: #1a1a1a;
 }
 
 .progress-path {
@@ -244,8 +244,8 @@ h3 {
 }
 
 .read-button {
-  background: var(--blue);
-  color: var(--blue-dark);
+  background: #f0f0f0;
+  color: #1a1a1a;
 }
 
 .rhythm-section,
@@ -256,20 +256,20 @@ h3 {
 
 .small-pill {
   border-radius: 999px;
-  background: #c9e8f2;
-  color: var(--blue-dark);
+  background: #f5f5f5;
+  color: #1a1a1a;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 800;
 }
 
 .browsing-section h3 {
-  color: var(--terra-dark);
+  color: #1a1a1a;
 }
 
 .browsing-section .section-heading p,
 .browsing-section #libraryCount {
-  color: var(--terra-dark);
+  color: #666666;
 }
 
 .road-chart {
@@ -384,7 +384,7 @@ h3 {
 
 .browsing-section .book-card,
 .browsing-section .library-card {
-  background: #fff1e9;
+  background: #ffffff;
 }
 
 .library-card .cover {
@@ -430,8 +430,8 @@ h3 {
 }
 
 .reader-term.active {
-  background: #c9e8f2;
-  color: var(--blue-dark);
+  background: #f5f5f5;
+  color: #1a1a1a;
 }
 
 .definition-popover {
@@ -475,8 +475,8 @@ h3 {
   min-width: 44px;
   min-height: 44px;
   border-radius: 12px;
-  background: #c9e8f2;
-  color: var(--blue-dark);
+  background: #f5f5f5;
+  color: #1a1a1a;
   display: grid;
   place-items: center;
   font-family: "Noto Serif SC", serif;
@@ -489,7 +489,7 @@ h3 {
 
 .definition-popover p {
   margin: 0;
-  color: var(--blue-dark);
+  color: #1a1a1a;
   font-size: 13px;
   line-height: 18px;
   font-weight: 800;
