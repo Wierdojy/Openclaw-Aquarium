@@ -586,6 +586,47 @@ h3 {
   outline-color: var(--sage-soft);
 }
 
+/* Translation styles */
+.translate-btn {
+  display: inline-block;
+  margin: 12px 0;
+  padding: 6px 14px;
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.translate-btn:hover {
+  background: var(--surface-high);
+  color: var(--ink);
+}
+
+.translation {
+  margin: 8px 0 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.translation.error {
+  border-left-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.reader-paragraph {
+  margin: 0 0 16px 0;
+}
+
 @media (max-width: 440px) {
   .shell {
     padding: 0;

@@ -16,7 +16,8 @@ const state = {
     isPlaying: false,
     currentWordIndex: -1,
     wordElements: []
-  }
+  },
+  translations: {} // Cache for translated text
 };
 
 const translations = {
@@ -380,22 +381,55 @@ function renderLibrary() {
 function renderInteractiveText(text) {
   const container = document.querySelector("#readerText");
   container.innerHTML = "";
-  let index = 0;
-  while (index < text.length) {
-    const char = text[index];
-    if (isChineseCharacter(char)) {
-      const button = document.createElement("button");
-      button.className = "reader-term";
-      button.type = "button";
-      button.textContent = char;
-      button.dataset.char = char;
-      button.dataset.index = String(index);
-      container.append(button);
-    } else {
-      container.append(document.createTextNode(char));
+  
+  // Split text into paragraphs (separated by empty lines)
+  const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
+  
+  paragraphs.forEach((paragraph, pIndex) => {
+    // Create paragraph container
+    const p = document.createElement('p');
+    p.className = 'reader-paragraph';
+    p.dataset.paragraphIndex = pIndex;
+    
+    let index = 0;
+    const paragraphStartIndex = text.indexOf(paragraph);
+    
+    while (index < paragraph.length) {
+      const char = paragraph[index];
+      if (isChineseCharacter(char)) {
+        const button = document.createElement("button");
+        button.className = "reader-term";
+        button.type = "button";
+        button.textContent = char;
+        button.dataset.char = char;
+        button.dataset.index = String(paragraphStartIndex + index);
+        p.append(button);
+      } else {
+        p.append(document.createTextNode(char));
+      }
+      index += 1;
     }
-    index += 1;
-  }
+    
+    container.append(p);
+    
+    // Add translate button and container for this paragraph
+    const translateBtn = document.createElement('button');
+    translateBtn.className = 'translate-btn';
+    translateBtn.textContent = '翻译成英文';
+    translateBtn.dataset.paragraphText = paragraph;
+    translateBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleTranslation(translateBtn, paragraph);
+    });
+    container.append(translateBtn);
+    
+    // Translation container (hidden by default)
+    const translationDiv = document.createElement('div');
+    translationDiv.className = 'translation';
+    translationDiv.hidden = true;
+    container.append(translationDiv);
+  });
+  
   // Start loading dictionary in background for future interactive features
   loadDictionary().catch(console.error);
 }
@@ -660,26 +694,94 @@ function resumeSpeech() {
   }
 }
 
-function positionDefinitionPopover(target, popover) {
-  const targetRect = target.getBoundingClientRect();
-  const popoverRect = popover.getBoundingClientRect();
-  const viewportPadding = 12;
-  const gap = 10;
-  const centeredLeft = targetRect.left + targetRect.width / 2 - popoverRect.width / 2;
-  const left = Math.min(
-    Math.max(viewportPadding, centeredLeft),
-    window.innerWidth - popoverRect.width - viewportPadding
-  );
-  const aboveTop = targetRect.top - popoverRect.height - gap;
-  const belowTop = targetRect.bottom + gap;
-  const top = aboveTop >= viewportPadding ? aboveTop : Math.min(belowTop, window.innerHeight - popoverRect.height - viewportPadding);
+// Translation Functions
+async function translateText(text, targetLang = 'en') {
+  const apiKey = localStorage.getItem('openrouter_api_key') || await getOpenRouterKey();
+  if (!apiKey) {
+    throw new Error('OpenRouter API key not configured. Please set it in settings.');
+  }
 
-  popover.style.left = `${left}px`;
-  popover.style.top = `${top}px`;
-  popover.classList.toggle("below", aboveTop < viewportPadding);
+  // Check cache first
+  const cacheKey = `${text.substring(0, 100)}_${targetLang}`;
+  if (state.translations[cacheKey]) {
+    return state.translations[cacheKey];
+  }
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-lite-001',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a translator. Translate the following Chinese text to ${targetLang === 'en' ? 'English' : targetLang}. Return only the translation, no explanations.`
+          },
+          {
+            role: 'user',
+            content: text
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 1000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const translation = data.choices[0]?.message?.content || text;
+    
+    // Cache the result
+    state.translations[cacheKey] = translation;
+    return translation;
+  } catch (error) {
+    console.error('Translation error:', error);
+    throw error;
+  }
 }
 
-function recordReadingSecond() {
+async function getOpenRouterKey() {
+  // Try to get from config or prompt user
+  return prompt('Please enter your OpenRouter API key:');
+}
+
+async function toggleTranslation(buttonEl, paragraphText) {
+  const translationDiv = buttonEl.nextElementSibling;
+  
+  if (translationDiv && translationDiv.classList.contains('translation')) {
+    // Toggle existing translation
+    translationDiv.hidden = !translationDiv.hidden;
+    buttonEl.textContent = translationDiv.hidden ? '翻译成英文' : '隐藏翻译';
+    return;
+  }
+  
+  // Create new translation
+  const newTranslationDiv = document.createElement('div');
+  newTranslationDiv.className = 'translation';
+  newTranslationDiv.textContent = '翻译中...';
+  
+  // Insert after the button
+  buttonEl.parentNode.insertBefore(newTranslationDiv, buttonEl.nextSibling);
+  
+  try {
+    const translation = await translateText(paragraphText);
+    newTranslationDiv.textContent = translation;
+    buttonEl.textContent = '隐藏翻译';
+  } catch (error) {
+    newTranslationDiv.textContent = '翻译失败，请重试。';
+    newTranslationDiv.classList.add('error');
+    console.error('Translation failed:', error);
+  }
+}
+
+function positionDefinitionPopover(target, popover) {
   const today = formatDateKey(new Date());
   const stats = getBookReadingStats();
   stats[today] = (stats[today] || 0) + 1;
