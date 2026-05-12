@@ -12,7 +12,22 @@ const state = {
   currentBook: 0,
   currentChapter: 0,
   currentReaderText: "",
-  dictionarySelection: null
+  dictionarySelection: null,
+  tts: {
+    supported: "speechSynthesis" in window && "SpeechSynthesisUtterance" in window,
+    voices: [],
+    voiceURI: loadTtsVoice(),
+    rate: loadTtsRate(),
+    chunks: [],
+    chunkIndex: 0,
+    chunkStart: 0,
+    utterance: null,
+    isPlaying: false,
+    isPaused: false,
+    requestedStop: false,
+    charIndex: 0,
+    statusKey: "ttsReady"
+  }
 };
 
 const translations = {
@@ -42,6 +57,26 @@ const translations = {
     search: "搜索",
     profile: "个人资料",
     back: "返回",
+    ttsIdle: "准备朗读",
+    ttsReady: "准备朗读",
+    ttsTitle: "朗读",
+    ttsPlaying: "正在朗读",
+    ttsPaused: "已暂停",
+    ttsStopped: "已停止",
+    ttsDone: "本章朗读完成",
+    ttsUnsupported: "此浏览器不支持朗读",
+    ttsVoiceLoading: "正在载入声音",
+    ttsVoiceFallback: "浏览器默认声音",
+    ttsVoice: "声音",
+    ttsRate: "速度",
+    ttsPlay: "朗读",
+    ttsPause: "暂停朗读",
+    ttsStop: "停止朗读",
+    ttsBack: "后退 100 字",
+    ttsForward: "前进 100 字",
+    ttsSlower: "慢一点",
+    ttsFaster: "快一点",
+    ttsJumpLabel: "跳到字",
     unknownPinyin: "未收录",
     unknownMeaning: "No local definition yet",
     languageToggle: "EN"
@@ -72,6 +107,26 @@ const translations = {
     search: "Search",
     profile: "Profile",
     back: "Back",
+    ttsIdle: "Ready to read",
+    ttsReady: "Ready to read",
+    ttsTitle: "Read aloud",
+    ttsPlaying: "Reading aloud",
+    ttsPaused: "Paused",
+    ttsStopped: "Stopped",
+    ttsDone: "Chapter finished",
+    ttsUnsupported: "Speech is not supported in this browser",
+    ttsVoiceLoading: "Loading voices",
+    ttsVoiceFallback: "Browser default voice",
+    ttsVoice: "Voice",
+    ttsRate: "Speed",
+    ttsPlay: "Read aloud",
+    ttsPause: "Pause reading",
+    ttsStop: "Stop reading",
+    ttsBack: "Back 100 characters",
+    ttsForward: "Forward 100 characters",
+    ttsSlower: "Slower",
+    ttsFaster: "Faster",
+    ttsJumpLabel: "Go to character",
     unknownPinyin: "Not saved",
     unknownMeaning: "No local definition yet",
     languageToggle: "中"
@@ -191,6 +246,23 @@ function loadBookProgress() {
 
 function saveBookProgress() {
   localStorage.setItem("muyu-book-progress", JSON.stringify(state.bookProgress));
+}
+
+function loadTtsVoice() {
+  return localStorage.getItem("muyu-tts-voice") || "";
+}
+
+function saveTtsVoice() {
+  localStorage.setItem("muyu-tts-voice", state.tts.voiceURI);
+}
+
+function loadTtsRate() {
+  const saved = Number(localStorage.getItem("muyu-tts-rate"));
+  return Number.isFinite(saved) && saved >= 0.6 && saved <= 1.8 ? saved : 1;
+}
+
+function saveTtsRate() {
+  localStorage.setItem("muyu-tts-rate", String(state.tts.rate));
 }
 
 function applySavedBookProgress(books) {
@@ -320,6 +392,7 @@ function applyLanguage() {
   });
   document.querySelector("#languageToggle").textContent = t("languageToggle");
   updateProfile();
+  updateTtsUi();
   renderLibrary();
   renderReadingRhythm();
 }
@@ -444,6 +517,237 @@ function renderReader() {
   renderHomeBooks();
   renderLibrary();
   updateChapterControls();
+  updateTtsUi();
+}
+
+function normalizeTtsText(text) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function chunkTtsText(text) {
+  if (!normalizeTtsText(text)) return [];
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    while (start < text.length && /\s/.test(text[start])) start += 1;
+    if (start >= text.length) break;
+
+    let end = Math.min(text.length, start + 220);
+    const minimumEnd = Math.min(text.length, start + 80);
+    for (let index = minimumEnd; index < end; index += 1) {
+      if (/[。！？!?；;，,、\n]/.test(text[index])) {
+        end = index + 1;
+        break;
+      }
+    }
+    chunks.push({ text: text.slice(start, end), start, end });
+    start = end;
+  }
+  return chunks;
+}
+
+function getVoiceKey(voice) {
+  return voice.voiceURI || `${voice.name}-${voice.lang}`;
+}
+
+function getPreferredVoice(voices) {
+  if (!voices.length) return null;
+  const savedVoice = voices.find((voice) => getVoiceKey(voice) === state.tts.voiceURI);
+  if (savedVoice) return savedVoice;
+  return (
+    voices.find((voice) => /^zh-(CN|Hans)/i.test(voice.lang)) ||
+    voices.find((voice) => /^zh/i.test(voice.lang)) ||
+    voices[0]
+  );
+}
+
+function populateTtsVoices() {
+  if (!state.tts.supported) {
+    updateTtsUi();
+    return;
+  }
+  const voices = window.speechSynthesis.getVoices();
+  state.tts.voices = voices.slice().sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+  const preferredVoice = getPreferredVoice(state.tts.voices);
+  if (preferredVoice && !state.tts.voiceURI) {
+    state.tts.voiceURI = getVoiceKey(preferredVoice);
+    saveTtsVoice();
+  }
+  updateTtsUi();
+}
+
+function getSelectedTtsVoice() {
+  return state.tts.voices.find((voice) => getVoiceKey(voice) === state.tts.voiceURI) || getPreferredVoice(state.tts.voices);
+}
+
+function setTtsStatus(statusKey) {
+  state.tts.statusKey = statusKey;
+  updateTtsUi();
+}
+
+function updateTtsUi() {
+  const panel = document.querySelector("#ttsPanel");
+  if (!panel) return;
+  const toggle = document.querySelector("#ttsToggle");
+  const stop = document.querySelector("#ttsStop");
+  const status = document.querySelector("#ttsStatus");
+  const back = document.querySelector("#ttsBack");
+  const forward = document.querySelector("#ttsForward");
+  const slower = document.querySelector("#ttsSlower");
+  const faster = document.querySelector("#ttsFaster");
+  const jumpInput = document.querySelector("#ttsJumpInput");
+  const rateLabel = document.querySelector("#ttsRateLabel");
+  const progressFill = document.querySelector("#ttsProgressFill");
+  toggle.classList.toggle("is-playing", state.tts.isPlaying && !state.tts.isPaused);
+  toggle.classList.toggle("tts-play-button", true);
+  toggle.setAttribute("aria-label", state.tts.isPlaying && !state.tts.isPaused ? t("ttsPause") : t("ttsPlay"));
+  stop.setAttribute("aria-label", t("ttsStop"));
+  status.textContent = state.tts.supported ? t(state.tts.statusKey) : t("ttsUnsupported");
+  if (rateLabel) rateLabel.textContent = `${state.tts.rate.toFixed(2).replace(/0$/, "")}x`;
+  if (jumpInput) {
+    jumpInput.max = String(Math.max(state.currentReaderText.length, 1));
+    jumpInput.value = String(Math.min(state.tts.charIndex + 1, Number(jumpInput.max)));
+    jumpInput.disabled = !state.tts.supported;
+  }
+  if (progressFill) {
+    const total = Math.max(state.currentReaderText.length, 1);
+    progressFill.style.width = `${Math.min(100, Math.round((state.tts.charIndex / total) * 100))}%`;
+  }
+  toggle.disabled = !state.tts.supported;
+  stop.disabled = !state.tts.supported || (!state.tts.isPlaying && !state.tts.isPaused);
+  [back, forward, slower, faster].forEach((button) => {
+    if (button) button.disabled = !state.tts.supported;
+  });
+}
+
+function clearTtsHighlight() {
+  document.querySelectorAll(".reader-term.speaking").forEach((node) => {
+    node.classList.remove("speaking");
+  });
+}
+
+function highlightTtsCharacter(index) {
+  clearTtsHighlight();
+  let target = getReaderTermAt(index);
+  for (let offset = 1; !target && offset < 8; offset += 1) {
+    target = getReaderTermAt(index + offset);
+  }
+  if (target) target.classList.add("speaking");
+}
+
+function setTtsCharacterIndex(index, shouldScroll = false) {
+  const maxIndex = Math.max(0, state.currentReaderText.length - 1);
+  state.tts.charIndex = Math.min(Math.max(0, index), maxIndex);
+  highlightTtsCharacter(state.tts.charIndex);
+  updateTtsUi();
+  if (shouldScroll) {
+    const target = getReaderTermAt(state.tts.charIndex);
+    if (target) target.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+}
+
+function speakNextTtsChunk() {
+  if (!state.tts.supported || state.tts.requestedStop) return;
+  const chunk = state.tts.chunks[state.tts.chunkIndex];
+  if (!chunk) {
+    state.tts.isPlaying = false;
+    state.tts.isPaused = false;
+    state.tts.chunkIndex = 0;
+    setTtsCharacterIndex(Math.max(0, state.currentReaderText.length - 1), false);
+    setTtsStatus("ttsDone");
+    return;
+  }
+
+  const chunkOffset = state.tts.charIndex > chunk.start && state.tts.charIndex < chunk.end ? state.tts.charIndex - chunk.start : 0;
+  const utterance = new SpeechSynthesisUtterance(chunk.text.slice(chunkOffset));
+  const voice = getSelectedTtsVoice();
+  if (voice) utterance.voice = voice;
+  utterance.lang = voice ? voice.lang : "zh-CN";
+  utterance.rate = state.tts.rate;
+  utterance.pitch = 1;
+  utterance.onboundary = (event) => {
+    if (typeof event.charIndex === "number") {
+      setTtsCharacterIndex(chunk.start + chunkOffset + event.charIndex, false);
+    }
+  };
+  utterance.onend = () => {
+    if (state.tts.requestedStop) return;
+    setTtsCharacterIndex(chunk.end, false);
+    state.tts.chunkIndex += 1;
+    speakNextTtsChunk();
+  };
+  utterance.onerror = () => {
+    state.tts.isPlaying = false;
+    state.tts.isPaused = false;
+    setTtsStatus("ttsStopped");
+  };
+  window.speechSynthesis.speak(utterance);
+}
+
+function startTts(startIndex = state.tts.charIndex) {
+  if (!state.tts.supported) return;
+  const chunks = chunkTtsText(state.currentReaderText);
+  if (!chunks.length) return;
+  window.speechSynthesis.cancel();
+  state.tts.chunks = chunks;
+  state.tts.charIndex = Math.max(0, Math.min(startIndex, state.currentReaderText.length - 1));
+  state.tts.chunkIndex = Math.max(
+    0,
+    chunks.findIndex((chunk) => state.tts.charIndex >= chunk.start && state.tts.charIndex < chunk.end)
+  );
+  state.tts.isPlaying = true;
+  state.tts.isPaused = false;
+  state.tts.requestedStop = false;
+  setTtsStatus("ttsPlaying");
+  speakNextTtsChunk();
+}
+
+function toggleTts() {
+  if (!state.tts.supported) return;
+  if (state.tts.isPlaying && !state.tts.isPaused) {
+    window.speechSynthesis.pause();
+    state.tts.isPaused = true;
+    setTtsStatus("ttsPaused");
+    return;
+  }
+  if (state.tts.isPlaying && state.tts.isPaused) {
+    window.speechSynthesis.resume();
+    state.tts.isPaused = false;
+    setTtsStatus("ttsPlaying");
+    return;
+  }
+  startTts();
+}
+
+function stopTts(statusKey = "ttsStopped") {
+  if (!state.tts.supported) return;
+  state.tts.requestedStop = true;
+  window.speechSynthesis.cancel();
+  state.tts.chunks = [];
+  state.tts.chunkIndex = 0;
+  state.tts.charIndex = 0;
+  state.tts.isPlaying = false;
+  state.tts.isPaused = false;
+  clearTtsHighlight();
+  setTtsStatus(statusKey);
+}
+
+function restartTtsFrom(charIndex) {
+  const wasActive = state.tts.isPlaying || state.tts.isPaused;
+  stopTts("ttsIdle");
+  setTtsCharacterIndex(charIndex, !wasActive);
+  if (wasActive) startTts(state.tts.charIndex);
+}
+
+function nudgeTtsCharacterOffset(amount) {
+  restartTtsFrom(state.tts.charIndex + amount);
+}
+
+function setTtsRate(rate) {
+  state.tts.rate = Math.max(0.6, Math.min(1.8, rate));
+  saveTtsRate();
+  if (state.tts.isPlaying || state.tts.isPaused) startTts(state.tts.charIndex);
+  updateTtsUi();
 }
 
 const toneMarks = {
@@ -613,6 +917,9 @@ function syncReadingTimer() {
 }
 
 function setView(viewName) {
+  if (state.activeView === "reader" && viewName !== "reader") {
+    stopTts("ttsIdle");
+  }
   state.activeView = viewName;
   document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
   document.querySelector(`#${viewName}View`).classList.add("active");
@@ -649,6 +956,7 @@ function changeChapter(direction) {
   const book = state.books[state.currentBook];
   const nextChapter = state.currentChapter + direction;
   if (nextChapter < 0 || nextChapter >= book.chapters.length) return;
+  stopTts("ttsIdle");
   state.currentChapter = nextChapter;
   renderReader();
   hideDefinition();
@@ -700,9 +1008,17 @@ window.addEventListener("scroll", hideDefinition, { passive: true });
 window.addEventListener("resize", hideDefinition);
 
 document.addEventListener("visibilitychange", syncReadingTimer);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.tts.isPlaying && !state.tts.isPaused) {
+    window.speechSynthesis.pause();
+    state.tts.isPaused = true;
+    setTtsStatus("ttsPaused");
+  }
+});
 
 window.addEventListener("beforeunload", () => {
   if (state.readingTimer) saveReadingStats();
+  stopTts("ttsIdle");
 });
 
 document.querySelector("#profileForm").addEventListener("submit", (event) => {
@@ -720,6 +1036,33 @@ document.querySelectorAll("[data-chapter-action]").forEach((button) => {
     changeChapter(button.dataset.chapterAction === "next" ? 1 : -1);
   });
 });
+
+document.querySelector("#ttsToggle").addEventListener("click", toggleTts);
+
+document.querySelector("#ttsStop").addEventListener("click", () => stopTts());
+
+document.querySelector("#ttsBack").addEventListener("click", () => nudgeTtsCharacterOffset(-100));
+
+document.querySelector("#ttsForward").addEventListener("click", () => nudgeTtsCharacterOffset(100));
+
+document.querySelector("#ttsSlower").addEventListener("click", () => setTtsRate(state.tts.rate - 0.05));
+
+document.querySelector("#ttsFaster").addEventListener("click", () => setTtsRate(state.tts.rate + 0.05));
+
+document.querySelector("#ttsJumpInput").addEventListener("change", (event) => {
+  const requestedIndex = Number(event.target.value) - 1;
+  if (!Number.isFinite(requestedIndex)) return;
+  restartTtsFrom(requestedIndex);
+});
+
+if (state.tts.supported) {
+  if (typeof window.speechSynthesis.addEventListener === "function") {
+    window.speechSynthesis.addEventListener("voiceschanged", populateTtsVoices);
+  } else {
+    window.speechSynthesis.onvoiceschanged = populateTtsVoices;
+  }
+  populateTtsVoices();
+}
 
 function renderAll() {
   applyLanguage();
