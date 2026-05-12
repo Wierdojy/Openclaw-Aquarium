@@ -62,6 +62,19 @@ const translations = {
     search: "搜索",
     profile: "个人资料",
     back: "返回",
+    authCreateMode: "创建账户",
+    authLoginMode: "登录",
+    authCaption: "沐浴读书",
+    authCreateTitle: "创建沐浴读书账户",
+    authLoginTitle: "登录沐浴读书",
+    authCreateSubmit: "创建账户",
+    authLoginSubmit: "登录",
+    authLoginToggle: "已有账户？登录",
+    authCreateToggle: "新用户？创建账户",
+    authUsername: "用户名",
+    authMissing: "请输入用户名和 PIN",
+    authExists: "这个用户名已经存在",
+    authBadLogin: "用户名或 PIN 不正确",
     ttsIdle: "准备朗读",
     ttsReady: "准备朗读",
     ttsTitle: "朗读",
@@ -112,6 +125,19 @@ const translations = {
     search: "Search",
     profile: "Profile",
     back: "Back",
+    authCreateMode: "Create account",
+    authLoginMode: "Log in",
+    authCaption: "Muyu Reader",
+    authCreateTitle: "Create a Muyu account",
+    authLoginTitle: "Log in to Muyu",
+    authCreateSubmit: "Create account",
+    authLoginSubmit: "Log in",
+    authLoginToggle: "Already have one? Log in",
+    authCreateToggle: "New here? Create account",
+    authUsername: "Username",
+    authMissing: "Enter a username and PIN",
+    authExists: "That username already exists",
+    authBadLogin: "Username or PIN is incorrect",
     ttsIdle: "Ready to read",
     ttsReady: "Ready to read",
     ttsTitle: "Read aloud",
@@ -294,10 +320,10 @@ function hasAccounts() {
 
 function setAuthMode(mode) {
   const isCreate = mode === "create";
-  document.querySelector("#authModeLabel").textContent = isCreate ? "创建账户" : "登录";
-  document.querySelector("#authTitle").textContent = isCreate ? "创建沐浴读书账户" : "登录沐浴读书";
-  document.querySelector("#authSubmit").textContent = isCreate ? "创建账户" : "登录";
-  document.querySelector("#authModeToggle").textContent = isCreate ? "已有账户？登录" : "新用户？创建账户";
+  document.querySelector("#authModeLabel").textContent = t("authCaption");
+  document.querySelector("#authTitle").textContent = t(isCreate ? "authCreateTitle" : "authLoginTitle");
+  document.querySelector("#authSubmit").textContent = t(isCreate ? "authCreateSubmit" : "authLoginSubmit");
+  document.querySelector("#authModeToggle").textContent = t(isCreate ? "authLoginToggle" : "authCreateToggle");
   document.querySelector("#authForm").dataset.mode = mode;
 }
 
@@ -347,8 +373,8 @@ function loadAccountState() {
 function createAccount(name, pin) {
   const accountId = normalizeAccountName(name);
   const accounts = loadAccounts();
-  if (!accountId || !pin) return "请输入用户名和 PIN";
-  if (accounts[accountId]) return "这个用户名已经存在";
+  if (!accountId || !pin) return t("authMissing");
+  if (accounts[accountId]) return t("authExists");
   accounts[accountId] = {
     displayName: name.trim(),
     pin
@@ -363,7 +389,7 @@ function createAccount(name, pin) {
 function loginAccount(name, pin) {
   const accountId = normalizeAccountName(name);
   const accounts = loadAccounts();
-  if (!accounts[accountId] || accounts[accountId].pin !== pin) return "用户名或 PIN 不正确";
+  if (!accounts[accountId] || accounts[accountId].pin !== pin) return t("authBadLogin");
   unlockApp(accountId);
   return "";
 }
@@ -494,6 +520,8 @@ function applyLanguage() {
     element.setAttribute("aria-label", t(element.dataset.i18nAria));
   });
   document.querySelector("#languageToggle").textContent = t("languageToggle");
+  document.querySelector("#authLanguageToggle").textContent = t("languageToggle");
+  setAuthMode(document.querySelector("#authForm").dataset.mode || (hasAccounts() ? "login" : "create"));
   updateProfile();
   updateTtsUi();
   renderLibrary();
@@ -1094,6 +1122,12 @@ document.querySelectorAll("[data-view-target]").forEach((button) => {
 document.querySelector("[data-open-reader]").addEventListener("click", () => setView("reader"));
 
 document.querySelector("#languageToggle").addEventListener("click", () => {
+  state.language = state.language === "zh" ? "en" : "zh";
+  saveLanguage();
+  applyLanguage();
+});
+
+document.querySelector("#authLanguageToggle").addEventListener("click", () => {
   state.language = state.language === "zh" ? "en" : "zh";
   saveLanguage();
   applyLanguage();
