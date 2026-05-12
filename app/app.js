@@ -11,6 +11,7 @@ const state = {
   readingTimer: null,
   currentBook: 0,
   currentChapter: 0,
+  currentReaderText: "",
   dictionarySelection: null
 };
 
@@ -404,9 +405,24 @@ function getChapterFlavorText(chapter) {
   return flavor.length > 58 ? `${flavor.slice(0, 58)}……` : flavor;
 }
 
+function getReaderBodyText(chapter) {
+  const titlePattern = /^(引子|第[一二三四五六七八九十百千万0-9]+[章节回卷部].*)$/;
+  const lines = chapter.text.split("\n");
+  while (lines.length) {
+    const line = lines[0].trim();
+    if (!line || line === chapter.title || titlePattern.test(line)) {
+      lines.shift();
+      continue;
+    }
+    break;
+  }
+  return lines.join("\n").trim();
+}
+
 function renderReader() {
   const book = state.books[state.currentBook];
   const chapter = book.chapters[state.currentChapter];
+  const readerText = getReaderBodyText(chapter);
   const progress = getBookProgress();
   book.progress = progress;
   state.bookProgress[book.title] = {
@@ -416,7 +432,8 @@ function renderReader() {
   saveBookProgress();
   document.querySelector("#readerBook").textContent = book.title;
   document.querySelector("#readerChapter").textContent = chapter.title;
-  renderInteractiveText(chapter.text);
+  state.currentReaderText = readerText;
+  renderInteractiveText(readerText);
   hideDefinition();
   document.querySelector("#chapterProgress").textContent = `${state.currentChapter + 1} / ${book.chapters.length}`;
   document.querySelector("#currentTitle").textContent = book.title;
@@ -531,9 +548,7 @@ function showDefinition(anchor, term, activeTargets) {
 
 function showDictionaryForTarget(target) {
   const selectedIndex = Number(target.dataset.index);
-  const book = state.books[state.currentBook];
-  const chapter = book.chapters[state.currentChapter];
-  const match = getDictionaryMatchAt(chapter.text, selectedIndex);
+  const match = getDictionaryMatchAt(state.currentReaderText, selectedIndex);
   const shouldShowCharacter =
     match &&
     match.term.length > 1 &&
