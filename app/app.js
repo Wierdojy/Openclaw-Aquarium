@@ -298,8 +298,9 @@ function applyLanguage() {
   renderReadingRhythm();
 }
 
-function coverClass(book) {
-  return book.color === "terra" ? "terra" : book.color === "blue" ? "blue" : "";
+function coverClass(index) {
+  const coverPalette = ["blue", "terra", "sage", "mist"];
+  return coverPalette[index % coverPalette.length];
 }
 
 function renderHomeBooks() {
@@ -310,7 +311,7 @@ function renderHomeBooks() {
     button.className = "book-card";
     button.type = "button";
     button.innerHTML = `
-      <div class="cover ${coverClass(book)}"></div>
+      <div class="cover ${coverClass(index)}"></div>
       <strong>${book.title}</strong>
       <span>${book.author}</span>
       <span>${book.progress || 0}%</span>
@@ -329,7 +330,7 @@ function renderLibrary() {
     button.className = "library-card";
     button.type = "button";
     button.innerHTML = `
-      <div class="cover ${coverClass(book)}"></div>
+      <div class="cover ${coverClass(index)}"></div>
       <div>
         <strong>${book.title}</strong>
         <span>${book.author}</span>
