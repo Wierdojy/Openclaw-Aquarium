@@ -379,6 +379,16 @@ function getBookProgress(bookIndex = state.currentBook) {
   return Math.round((state.currentChapter / book.chapters.length) * 100);
 }
 
+function getChapterFlavorText(chapter) {
+  const titlePattern = /^(引子|第[一二三四五六七八九十百千万0-9]+[章节回卷部].*)$/;
+  const lines = chapter.text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => line && line !== chapter.title && !titlePattern.test(line));
+  const flavor = lines.find((line) => line.length >= 12) || lines[0] || "";
+  return flavor.length > 58 ? `${flavor.slice(0, 58)}……` : flavor;
+}
+
 function renderReader() {
   const book = state.books[state.currentBook];
   const chapter = book.chapters[state.currentChapter];
@@ -396,7 +406,7 @@ function renderReader() {
   document.querySelector("#chapterProgress").textContent = `${state.currentChapter + 1} / ${book.chapters.length}`;
   document.querySelector("#currentTitle").textContent = book.title;
   document.querySelector("#currentChapter").textContent = `${chapter.title} · ${progress}%`;
-  document.querySelector("#currentExcerpt").textContent = chapter.text.split("\n").find(Boolean) || "";
+  document.querySelector("#currentExcerpt").textContent = getChapterFlavorText(chapter);
   document.querySelector("#currentProgressFill").style.width = `${progress}%`;
   document.querySelector("#currentProgressPath").setAttribute("aria-label", `阅读进度 ${progress}%`);
   renderHomeBooks();
