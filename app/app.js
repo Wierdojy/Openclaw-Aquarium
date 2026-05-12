@@ -413,11 +413,31 @@ function showDefinition(target) {
   document.querySelector("#definitionPinyin").textContent = pinyin;
   document.querySelector("#definitionMeaning").textContent = meaning;
   popover.hidden = false;
+  positionDefinitionPopover(target, popover);
 }
 
 function hideDefinition() {
   document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
   document.querySelector("#definitionPopover").hidden = true;
+}
+
+function positionDefinitionPopover(target, popover) {
+  const targetRect = target.getBoundingClientRect();
+  const popoverRect = popover.getBoundingClientRect();
+  const viewportPadding = 12;
+  const gap = 10;
+  const centeredLeft = targetRect.left + targetRect.width / 2 - popoverRect.width / 2;
+  const left = Math.min(
+    Math.max(viewportPadding, centeredLeft),
+    window.innerWidth - popoverRect.width - viewportPadding
+  );
+  const aboveTop = targetRect.top - popoverRect.height - gap;
+  const belowTop = targetRect.bottom + gap;
+  const top = aboveTop >= viewportPadding ? aboveTop : Math.min(belowTop, window.innerHeight - popoverRect.height - viewportPadding);
+
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+  popover.classList.toggle("below", aboveTop < viewportPadding);
 }
 
 function recordReadingSecond() {
@@ -500,6 +520,8 @@ document.querySelector("#readerText").addEventListener("click", (event) => {
 });
 
 document.querySelector("#definitionPopover").addEventListener("click", hideDefinition);
+window.addEventListener("scroll", hideDefinition, { passive: true });
+window.addEventListener("resize", hideDefinition);
 
 document.addEventListener("visibilitychange", syncReadingTimer);
 
