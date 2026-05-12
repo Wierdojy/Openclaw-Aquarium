@@ -77,6 +77,14 @@ button {
   font-weight: 600;
 }
 
+.brand-name {
+  margin: 0 0 6px;
+  color: var(--sage-dark);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 800;
+}
+
 h1,
 h2,
 h3 {
