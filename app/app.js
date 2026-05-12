@@ -401,7 +401,7 @@ function renderInteractiveText(text) {
         button.className = "reader-term";
         button.type = "button";
         button.textContent = char;
-        button.dataset.char = char;
+        button.dataset.term = char;
         button.dataset.index = String(paragraphStartIndex + index);
         p.append(button);
       } else {
@@ -765,14 +765,25 @@ async function toggleTranslation(buttonEl, paragraphText) {
 }
 
 function positionDefinitionPopover(target, popover) {
-  const today = formatDateKey(new Date());
-  const stats = getBookReadingStats();
-  stats[today] = (stats[today] || 0) + 1;
-  if (stats[today] % 5 === 0) saveReadingStats();
-  renderReadingRhythm();
+  const targetRect = target.getBoundingClientRect();
+  const popoverRect = popover.getBoundingClientRect();
+  const viewportPadding = 12;
+  const gap = 10;
+  const centeredLeft = targetRect.left + targetRect.width / 2 - popoverRect.width / 2;
+  const left = Math.min(
+    Math.max(viewportPadding, centeredLeft),
+    window.innerWidth - popoverRect.width - viewportPadding
+  );
+  const aboveTop = targetRect.top - popoverRect.height - gap;
+  const belowTop = targetRect.bottom + gap;
+  const top = aboveTop >= viewportPadding ? aboveTop : Math.min(belowTop, window.innerHeight - popoverRect.height - viewportPadding);
+
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+  popover.classList.toggle("below", aboveTop < viewportPadding);
 }
 
-function syncReadingTimer() {
+function recordReadingSecond() {
   const shouldTrack = state.activeView === "reader" && !document.hidden;
   if (shouldTrack && !state.readingTimer) {
     state.readingTimer = window.setInterval(recordReadingSecond, 1000);
