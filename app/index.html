@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Serif+SC:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260511-15" />
+    <link rel="stylesheet" href="styles.css?v=20260511-16" />
   </head>
   <body>
     <section class="auth-overlay" id="authOverlay" hidden>
@@ -107,7 +107,24 @@
               <p class="caption" id="readerBook">鬼吹灯之精绝古城</p>
               <h3 id="readerChapter">引子</h3>
             </div>
+            <button class="icon-button toc-button" type="button" id="tocToggle" aria-label="目录" data-i18n-aria="toc" aria-expanded="false" aria-controls="tocPanel">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12" /><path d="M8 12h12" /><path d="M8 18h12" /><path d="M4 6h.01" /><path d="M4 12h.01" /><path d="M4 18h.01" /></svg>
+            </button>
           </div>
+          <section class="toc-panel" id="tocPanel" aria-label="目录" hidden>
+            <div class="toc-card">
+              <div class="section-heading">
+                <div>
+                  <p class="caption" data-i18n="tocCaption">章节</p>
+                  <h3 data-i18n="tocTitle">目录</h3>
+                </div>
+                <button class="icon-button" type="button" id="tocClose" aria-label="关闭目录" data-i18n-aria="tocClose">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </button>
+              </div>
+              <div class="toc-list" id="tocList"></div>
+            </div>
+          </section>
           <div class="reader-controls reader-controls-top">
             <button class="icon-button" type="button" data-chapter-action="prev" aria-label="上一章">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
@@ -195,8 +212,8 @@
 
       </section>
     </main>
-    <script src="book-data.js?v=20260511-15"></script>
-    <script src="dictionary-data.js?v=20260511-15"></script>
-    <script src="app.js?v=20260511-15"></script>
+    <script src="book-data.js?v=20260511-16"></script>
+    <script src="dictionary-data.js?v=20260511-16"></script>
+    <script src="app.js?v=20260511-16"></script>
   </body>
 </html>
