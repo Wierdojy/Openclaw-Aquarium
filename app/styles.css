@@ -13,6 +13,7 @@
   --terra-dark: #78422a;
   --blue: #88a6b0;
   --blue-dark: #1e3c44;
+  --blue-soft: #c9e8f2;
   --shadow: 0 20px 45px rgba(74, 101, 78, 0.11);
 }
 
@@ -36,6 +37,14 @@ textarea {
 
 button {
   cursor: pointer;
+}
+
+button:focus {
+  outline: 0;
+}
+
+button:focus-visible {
+  box-shadow: 0 0 0 2px var(--outline);
 }
 
 .shell {
@@ -174,13 +183,22 @@ h3 {
 }
 
 .tab-library.active {
-  background: #ffdbcd;
+  background: var(--blue-soft);
   color: var(--ink);
 }
 
 .tab-reader.active {
-  background: #c9e8f2;
+  background: var(--sage-soft);
   color: var(--ink);
+}
+
+.tab-library:focus-visible {
+  box-shadow: 0 0 0 2px var(--blue);
+}
+
+.tab-reader:focus-visible,
+.read-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--sage);
 }
 
 .view {
@@ -256,12 +274,12 @@ h3 {
 
 .rhythm-section h3,
 .rhythm-section #rhythmSubtitle {
-  color: var(--ink);
+  color: var(--blue-dark);
 }
 
 .small-pill {
   border-radius: 999px;
-  background: #c9e8f2;
+  background: var(--blue-soft);
   color: var(--ink);
   padding: 6px 12px;
   font-size: 12px;
@@ -269,12 +287,12 @@ h3 {
 }
 
 .browsing-section h3 {
-  color: var(--ink);
+  color: var(--blue-dark);
 }
 
 .browsing-section .section-heading p,
 .browsing-section #libraryCount {
-  color: var(--muted);
+  color: var(--blue-dark);
 }
 
 .road-chart {
@@ -290,7 +308,7 @@ h3 {
   display: block;
   height: 34px;
   border-radius: 999px;
-  background: var(--sage-soft);
+  background: var(--blue-soft);
 }
 
 .road-chart .today {
@@ -443,7 +461,7 @@ h3 {
 }
 
 .reader-term.active {
-  background: #c9e8f2;
+  background: var(--sage-soft);
   color: var(--ink);
 }
 
@@ -488,7 +506,7 @@ h3 {
   min-width: 44px;
   min-height: 44px;
   border-radius: 12px;
-  background: #c9e8f2;
+  background: var(--sage-soft);
   color: var(--ink);
   display: grid;
   place-items: center;
