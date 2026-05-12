@@ -10,15 +10,16 @@
       href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Serif+SC:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260511-13" />
+    <link rel="stylesheet" href="styles.css?v=20260511-14" />
   </head>
   <body>
     <section class="auth-overlay" id="authOverlay" hidden>
       <form class="auth-card" id="authForm">
+        <button class="language-button auth-language-button" type="button" id="authLanguageToggle" aria-label="Switch interface language">EN</button>
         <p class="caption" id="authModeLabel">创建账户</p>
         <h2 id="authTitle">沐浴读书</h2>
         <label>
-          <span>用户名</span>
+          <span data-i18n="authUsername">用户名</span>
           <input id="authNameInput" autocomplete="username" required maxlength="24" />
         </label>
         <label>
@@ -196,8 +197,8 @@
 
       </section>
     </main>
-    <script src="book-data.js?v=20260511-13"></script>
-    <script src="dictionary-data.js?v=20260511-13"></script>
-    <script src="app.js?v=20260511-13"></script>
+    <script src="book-data.js?v=20260511-14"></script>
+    <script src="dictionary-data.js?v=20260511-14"></script>
+    <script src="app.js?v=20260511-14"></script>
   </body>
 </html>
