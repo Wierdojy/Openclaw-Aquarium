@@ -403,6 +403,55 @@ function renderReader() {
   renderLibrary();
 }
 
+const toneMarks = {
+  a: ["ā", "á", "ǎ", "à"],
+  e: ["ē", "é", "ě", "è"],
+  i: ["ī", "í", "ǐ", "ì"],
+  o: ["ō", "ó", "ǒ", "ò"],
+  u: ["ū", "ú", "ǔ", "ù"],
+  v: ["ǖ", "ǘ", "ǚ", "ǜ"],
+  ü: ["ǖ", "ǘ", "ǚ", "ǜ"],
+  A: ["Ā", "Á", "Ǎ", "À"],
+  E: ["Ē", "É", "Ě", "È"],
+  I: ["Ī", "Í", "Ǐ", "Ì"],
+  O: ["Ō", "Ó", "Ǒ", "Ò"],
+  U: ["Ū", "Ú", "Ǔ", "Ù"],
+  V: ["Ǖ", "Ǘ", "Ǚ", "Ǜ"],
+  Ü: ["Ǖ", "Ǘ", "Ǚ", "Ǜ"]
+};
+
+function markPinyinSyllable(syllable) {
+  const toneMatch = syllable.match(/([1-5])$/);
+  if (!toneMatch) return syllable.replace(/u:/g, "ü").replace(/v/g, "ü");
+  const tone = Number(toneMatch[1]);
+  let base = syllable.slice(0, -1).replace(/u:/g, "ü").replace(/v/g, "ü");
+  if (tone === 5) return base;
+
+  const lowerBase = base.toLowerCase();
+  let markIndex = -1;
+  for (const vowel of ["a", "e", "ou"]) {
+    const index = lowerBase.indexOf(vowel);
+    if (index !== -1) {
+      markIndex = index;
+      break;
+    }
+  }
+  if (markIndex === -1) {
+    markIndex = Math.max(base.search(/[aeiouüAEIOUÜ][^aeiouüAEIOUÜ]*$/), 0);
+  }
+  const vowel = base[markIndex];
+  const marked = toneMarks[vowel]?.[tone - 1];
+  if (!marked) return base;
+  return `${base.slice(0, markIndex)}${marked}${base.slice(markIndex + 1)}`;
+}
+
+function formatPinyin(pinyin) {
+  return pinyin
+    .split(/(\s+|-)/)
+    .map((part) => (/[\s-]+/.test(part) ? part : markPinyinSyllable(part)))
+    .join("");
+}
+
 function showDefinition(target) {
   const term = target.dataset.term;
   const [pinyin, meaning] = characterDictionary[term] || [t("unknownPinyin"), t("unknownMeaning")];
@@ -410,7 +459,7 @@ function showDefinition(target) {
   document.querySelectorAll(".reader-term.active").forEach((node) => node.classList.remove("active"));
   target.classList.add("active");
   document.querySelector("#definitionChar").textContent = term;
-  document.querySelector("#definitionPinyin").textContent = pinyin;
+  document.querySelector("#definitionPinyin").textContent = formatPinyin(pinyin);
   document.querySelector("#definitionMeaning").textContent = meaning;
   popover.hidden = false;
   positionDefinitionPopover(target, popover);
