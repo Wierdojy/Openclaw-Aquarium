@@ -189,16 +189,6 @@ h3 {
   overflow: hidden;
 }
 
-.book-mark {
-  position: absolute;
-  top: 0;
-  right: 24px;
-  width: 34px;
-  height: 54px;
-  border-radius: 0 0 16px 16px;
-  background: var(--blue);
-}
-
 .section-kicker {
   color: var(--sage-dark);
   margin-bottom: 10px;
@@ -311,12 +301,14 @@ h3 {
 
 .book-card {
   padding: 10px;
+  display: grid;
+  grid-template-rows: 92px 42px 16px 16px;
+  gap: 6px;
 }
 
 .cover {
   height: 92px;
   border-radius: 13px;
-  margin-bottom: 10px;
   background: var(--sage);
 }
 
@@ -336,13 +328,23 @@ h3 {
   line-height: 20px;
 }
 
+.book-card strong {
+  min-height: 40px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .book-card span,
 .library-card span {
   display: block;
   color: var(--muted);
   font-size: 11px;
   line-height: 16px;
-  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .library-card {
