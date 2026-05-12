@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Noto+Serif+SC:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260511-14" />
+    <link rel="stylesheet" href="styles.css?v=20260511-15" />
   </head>
   <body>
     <section class="auth-overlay" id="authOverlay" hidden>
@@ -121,7 +121,7 @@
             <div class="tts-heading">
               <div>
                 <p class="caption" data-i18n="ttsTitle">朗读</p>
-                <strong id="ttsStatus" data-i18n="ttsReady">准备朗读</strong>
+                <strong id="ttsStatus" data-i18n="ttsReady">准备播放</strong>
               </div>
               <span class="tts-rate" id="ttsRateLabel">1.0x</span>
             </div>
@@ -140,13 +140,11 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 5 7 7-7 7" /><path d="m4 5 7 7-7 7" /></svg>
               </button>
             </div>
-            <div class="tts-jump-row">
-              <button type="button" class="mini-button" id="ttsSlower" data-i18n="ttsSlower">慢一点</button>
-              <label>
-                <span data-i18n="ttsJumpLabel">跳到字</span>
-                <input id="ttsJumpInput" inputmode="numeric" type="number" min="1" value="1" />
+            <div class="tts-speed-row">
+              <label for="ttsRateSlider">
+                <span data-i18n="ttsRate">速度</span>
+                <input id="ttsRateSlider" type="range" min="0.6" max="1.8" step="0.1" value="1" />
               </label>
-              <button type="button" class="mini-button" id="ttsFaster" data-i18n="ttsFaster">快一点</button>
             </div>
             <div class="tts-progress" aria-label="朗读进度">
               <span id="ttsProgressFill"></span>
@@ -197,8 +195,8 @@
 
       </section>
     </main>
-    <script src="book-data.js?v=20260511-14"></script>
-    <script src="dictionary-data.js?v=20260511-14"></script>
-    <script src="app.js?v=20260511-14"></script>
+    <script src="book-data.js?v=20260511-15"></script>
+    <script src="dictionary-data.js?v=20260511-15"></script>
+    <script src="app.js?v=20260511-15"></script>
   </body>
 </html>
