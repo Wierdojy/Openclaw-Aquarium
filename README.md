@@ -31,6 +31,12 @@ node scripts/build-dictionary-data.js
 
 Then open `app/index.html` through any static web server.
 
+## GitHub Pages
+
+The app is published from the `main` branch. The root page redirects to `app/`, so the public URL is:
+
+https://wierdojy.github.io/Openclaw-Aquarium/
+
 ## Dictionary Attribution
 
 Dictionary data comes from CC-CEDICT, a community-maintained Chinese-English dictionary.
