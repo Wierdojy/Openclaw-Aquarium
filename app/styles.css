@@ -731,6 +731,13 @@ h3 {
   border-radius: 24px;
   background: var(--background);
   box-shadow: var(--shadow);
+  position: relative;
+}
+
+.auth-language-button {
+  position: absolute;
+  right: 18px;
+  top: 18px;
 }
 
 .auth-card label {
