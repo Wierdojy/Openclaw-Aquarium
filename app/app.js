@@ -696,11 +696,6 @@ function resumeSpeech() {
 
 // Translation Functions
 async function translateText(text, targetLang = 'en') {
-  const apiKey = localStorage.getItem('openrouter_api_key') || await getOpenRouterKey();
-  if (!apiKey) {
-    throw new Error('OpenRouter API key not configured. Please set it in settings.');
-  }
-
   // Check cache first
   const cacheKey = `${text.substring(0, 100)}_${targetLang}`;
   if (state.translations[cacheKey]) {
@@ -708,35 +703,28 @@ async function translateText(text, targetLang = 'en') {
   }
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-lite-001',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a translator. Translate the following Chinese text to ${targetLang === 'en' ? 'English' : targetLang}. Return only the translation, no explanations.`
-          },
-          {
-            role: 'user',
-            content: text
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1000
-      })
-    });
+    // Use MyMemory Translation API (free, no key required)
+    const response = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=zh|${targetLang}`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`Translation API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const translation = data.choices[0]?.message?.content || text;
+    
+    if (data.responseStatus && data.responseStatus !== 200) {
+      throw new Error(data.responseDetails || 'Translation failed');
+    }
+
+    const translation = data.responseData?.translatedText || text;
     
     // Cache the result
     state.translations[cacheKey] = translation;
@@ -745,11 +733,6 @@ async function translateText(text, targetLang = 'en') {
     console.error('Translation error:', error);
     throw error;
   }
-}
-
-async function getOpenRouterKey() {
-  // Try to get from config or prompt user
-  return prompt('Please enter your OpenRouter API key:');
 }
 
 async function toggleTranslation(buttonEl, paragraphText) {
